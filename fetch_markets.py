@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import time
 
 today = int(time.time())
-sixty_days = int(time.time()) + (60 * 24 * 60 * 60)
+sixty_days = int(time.time()) + (90 * 24 * 60 * 60)
 KALSHI_API_URL = f"https://external-api.kalshi.com/trade-api/v2/markets?status=open&min_close_ts={today}&max_close_ts={sixty_days}"
 POLYMARKET_API_URL = "https://gamma-api.polymarket.com/markets?active=true&closed=false"
 VOLUME_THRESHOLD = 1
@@ -185,7 +185,7 @@ def get_kalshi_markets(target):
     print(f"Kalshi targets found: {len(markets)} | Time Elapsed: {(int(time.time()) - begin)} sec")
     return markets
 
-def find_markets(target=500):
+def find_markets(target=1000):
     kalshi = get_kalshi_markets(target=target)
     pm = get_polymarket_markets(target=target)
     return kalshi, pm

@@ -1,0 +1,218 @@
+{
+  "KXFEDDECISION-26SEP-H0::629267": {
+    "kalshi_id": "KXFEDDECISION-26SEP-H0",
+    "polymarket_id": "629267",
+    "kalshi_question": "Will the Federal Reserve Hike rates by 0bps at their September 2026 meeting?",
+    "polymarket_question": "Will any country leave NATO by June 30, 2026?",
+    "reason": "Federal Reserve does not hike rates",
+    "fuzzy_score": 32.96703296703297,
+    "added": "2026-06-21"
+  },
+  "KXAIPACLOSEPRIMARY-26SEP16-T10::572118": {
+    "kalshi_id": "KXAIPACLOSEPRIMARY-26SEP16-T10",
+    "polymarket_id": "572118",
+    "kalshi_question": "Will the number of AIPAC PAC-endorsed candidates who lose their primary be at least 10 between Apr 10, 2026 and Sep 16, 2026?",
+    "polymarket_question": "Tom Holland announced as next James Bond?",
+    "reason": "At least 10 AIPAC-endorsed candidates lose primary, and no one is announced as next James Bond",
+    "fuzzy_score": 30.88235294117647,
+    "added": "2026-06-21"
+  },
+  "KXCPIYOY-26AUG-T4.7::608363": {
+    "kalshi_id": "KXCPIYOY-26AUG-T4.7",
+    "polymarket_id": "608363",
+    "kalshi_question": "Will the rate of CPI inflation be above 4.7% for the year ending in August 2026?",
+    "polymarket_question": "Will OpenAI\u2019s market cap be between $500B and $750B at market close on IPO day?",
+    "reason": "Will the rate of CPI inflation be above 4.7% for the year ending in August 2026? matches with Will OpenAI\u2019s market cap be between $500B and $750B at market close on IPO day?",
+    "fuzzy_score": 39.583333333333336,
+    "added": "2026-06-21"
+  },
+  "KXCPIYOY-26AUG-T4.1::608364": {
+    "kalshi_id": "KXCPIYOY-26AUG-T4.1",
+    "polymarket_id": "608364",
+    "kalshi_question": "Will the rate of CPI inflation be above 4.1% for the year ending in August 2026?",
+    "polymarket_question": "Will OpenAI\u2019s market cap be between $750B and $1T at market close on IPO day?",
+    "reason": "Will the rate of CPI inflation be above 4.1% for the year ending in August 2026? matches with Will OpenAI\u2019s market cap be between $750B and $1T at market close on IPO day?",
+    "fuzzy_score": 40.42553191489362,
+    "added": "2026-06-21"
+  },
+  "KXINDYCARSERIES-NTTICS26-SDIX::558955": {
+    "kalshi_id": "KXINDYCARSERIES-NTTICS26-SDIX",
+    "polymarket_id": "558955",
+    "kalshi_question": "Will Scott Dixon be the NTT IndyCar Series Champion?",
+    "polymarket_question": "Will Ecuador win the 2026 FIFA World Cup?",
+    "reason": "Will Scott Dixon be the NTT IndyCar Series Champion? matches with Will Ecuador win the 2026 FIFA World Cup?",
+    "fuzzy_score": 37.142857142857146,
+    "added": "2026-06-21"
+  },
+  "KXCHESSGRANDTOUR-26-WSO::558967": {
+    "kalshi_id": "KXCHESSGRANDTOUR-26-WSO",
+    "polymarket_id": "558967",
+    "kalshi_question": "Will Wesley So win the Grand Chess Tour 2026 Finals?",
+    "polymarket_question": "Will Ghana win the 2026 FIFA World Cup?",
+    "reason": "Will Wesley So win the Grand Chess Tour 2026 Finals? matches with Will Ghana win the 2026 FIFA World Cup?",
+    "fuzzy_score": 53.52112676056338,
+    "added": "2026-06-21"
+  },
+  "KXCPIYOY-26AUG-T4.7::608375": {
+    "kalshi_id": "KXCPIYOY-26AUG-T4.7",
+    "polymarket_id": "608375",
+    "kalshi_question": "Will the rate of CPI inflation be above 4.7% for the year ending in August 2026?",
+    "polymarket_question": "Will Fannie Mae\u2019s market cap be between $350B and $400B at market close on IPO day?",
+    "reason": "Will the rate of CPI inflation be above 4.7% for the year ending in August 2026? matches with Will Fannie Mae\u2019s market cap be between $350B and $400B at market close on IPO day?",
+    "fuzzy_score": 43.99999999999999,
+    "added": "2026-06-21"
+  },
+  "KXMLSJOIN-26SEP03-LMOURA::540819": {
+    "kalshi_id": "KXMLSJOIN-26SEP03-LMOURA",
+    "polymarket_id": "540819",
+    "kalshi_question": "Who will join MLS in the summer?",
+    "polymarket_question": "Will Jesus Christ return before GTA VI?",
+    "reason": "Who will join MLS in the summer?",
+    "fuzzy_score": 34.14634146341463,
+    "added": "2026-06-21"
+  },
+  "KXMLSJOIN-26SEP03-CRONALDO::540819": {
+    "kalshi_id": "KXMLSJOIN-26SEP03-CRONALDO",
+    "polymarket_id": "540819",
+    "kalshi_question": "Who will join MLS in the summer?",
+    "polymarket_question": "Will Jesus Christ return before GTA VI?",
+    "reason": "Who will join MLS in the summer?",
+    "fuzzy_score": 34.14634146341463,
+    "added": "2026-06-21"
+  },
+  "KXNCAAFGAME-26SEP06WISND-WIS::558935": {
+    "kalshi_id": "KXNCAAFGAME-26SEP06WISND-WIS",
+    "polymarket_id": "558935",
+    "kalshi_question": "Will Wisconsin win the Wisconsin vs Notre Dame college football game?",
+    "polymarket_question": "Will England win the 2026 FIFA World Cup?",
+    "reason": "Will Wisconsin win the Wisconsin vs Notre Dame college football game? and Will England win the 2026 FIFA World Cup?",
+    "fuzzy_score": 33.333333333333336,
+    "added": "2026-06-21"
+  },
+  "KXLIUSACOUPLE-26AUG31-SOSI::540817": {
+    "kalshi_id": "KXLIUSACOUPLE-26AUG31-SOSI",
+    "polymarket_id": "540817",
+    "kalshi_question": "Will Sol and Sincere win Love Island USA Season 8?",
+    "polymarket_question": "New Rihanna Album before GTA VI?",
+    "reason": "Will Sol and Sincere win Love Island USA Season 8? and New Rihanna Album before GTA VI?",
+    "fuzzy_score": 34.375,
+    "added": "2026-06-21"
+  },
+  "KXLIUSACOUPLE-26AUG31-MESI::540817": {
+    "kalshi_id": "KXLIUSACOUPLE-26AUG31-MESI",
+    "polymarket_id": "540817",
+    "kalshi_question": "Will Melanie and Sincere win Love Island USA Season 8?",
+    "polymarket_question": "New Rihanna Album before GTA VI?",
+    "reason": "Will Melanie and Sincere win Love Island USA Season 8? and New Rihanna Album before GTA VI?",
+    "fuzzy_score": 38.23529411764706,
+    "added": "2026-06-21"
+  },
+  "KXLIUSACOUPLE-26AUG31-BEGA::540817": {
+    "kalshi_id": "KXLIUSACOUPLE-26AUG31-BEGA",
+    "polymarket_id": "540817",
+    "kalshi_question": "Will Beatriz and Gabriel win Love Island USA Season 8?",
+    "polymarket_question": "New Rihanna Album before GTA VI?",
+    "reason": "Will Beatriz and Gabriel win Love Island USA Season 8? and New Rihanna Album before GTA VI?",
+    "fuzzy_score": 38.23529411764706,
+    "added": "2026-06-21"
+  },
+  "KXBURNHAMPM-27JAN01-0901::597964": {
+    "kalshi_id": "KXBURNHAMPM-27JAN01-0901",
+    "polymarket_id": "597964",
+    "kalshi_question": "Will Andy Burnham formally hold the role of Prime Minister of the United Kingdom before September 1, 2026?",
+    "polymarket_question": "Macron out by June 30, 2026?",
+    "reason": "Will Andy Burnham formally hold the role of Prime Minister of the United Kingdom before September 1, 2026? and Taylor Swift pregnant before marriage?",
+    "fuzzy_score": 33.66336633663366,
+    "added": "2026-06-21"
+  },
+  "KXNCAAFGAME-26SEP05CLEMLSU-CLEM::558936": {
+    "kalshi_id": "KXNCAAFGAME-26SEP05CLEMLSU-CLEM",
+    "polymarket_id": "558936",
+    "kalshi_question": "Will Clemson win the Clemson vs LSU college football game?",
+    "polymarket_question": "Will France win the 2026 FIFA World Cup?",
+    "reason": "Will Clemson win the Clemson vs LSU college football game? and Will France win the 2026 FIFA World Cup?",
+    "fuzzy_score": 30.76923076923077,
+    "added": "2026-06-21"
+  },
+  "KXLIUSACOUPLE-26AUG31-JEGA::540817": {
+    "kalshi_id": "KXLIUSACOUPLE-26AUG31-JEGA",
+    "polymarket_id": "540817",
+    "kalshi_question": "Will Jen and Gabriel win Love Island USA Season 8?",
+    "polymarket_question": "New Rihanna Album before GTA VI?",
+    "reason": "Will Jen and Gabriel win Love Island USA Season 8? and New Rihanna Album before GTA VI?",
+    "fuzzy_score": 40.625,
+    "added": "2026-06-21"
+  },
+  "KXNEXTMANAGERSERIEA-26ACM-APOS::572123": {
+    "kalshi_id": "KXNEXTMANAGERSERIEA-26ACM-APOS",
+    "polymarket_id": "572123",
+    "kalshi_question": "Who will be the next manager of AC Milan?",
+    "polymarket_question": "Theo James announced as next James Bond?",
+    "reason": "Who will be the next manager of AC Milan? and Theo James announced as next James Bond?",
+    "fuzzy_score": 46.666666666666664,
+    "added": "2026-06-21"
+  },
+  "KXNEXTMANAGERSERIEA-26ACM-XAVI::572123": {
+    "kalshi_id": "KXNEXTMANAGERSERIEA-26ACM-XAVI",
+    "polymarket_id": "572123",
+    "kalshi_question": "Who will be the next manager of AC Milan?",
+    "polymarket_question": "Theo James announced as next James Bond?",
+    "reason": "Who will be the next manager of AC Milan? and Theo James announced as next James Bond?",
+    "fuzzy_score": 46.666666666666664,
+    "added": "2026-06-21"
+  },
+  "KXALBUMEQUIV-DON26SEP03-80K::540817": {
+    "kalshi_id": "KXALBUMEQUIV-DON26SEP03-80K",
+    "polymarket_id": "540817",
+    "kalshi_question": "Will Don\u2019t Look Down by Rod Wave have above 80000 Album Equivalent Units during the August 28, 2026 - September 03, 2026 tracking week?",
+    "polymarket_question": "New Rihanna Album before GTA VI?",
+    "reason": "Don't Look Down by Rod Wave has above 80000 Album Equivalent Units during the August 28, 2026 - September 03, 2026 tracking week and New Rihanna Album before GTA VI",
+    "fuzzy_score": 27.73722627737226,
+    "added": "2026-06-21"
+  },
+  "KXPUREALBUMS-DON26SEP03-3K::540818": {
+    "kalshi_id": "KXPUREALBUMS-DON26SEP03-3K",
+    "polymarket_id": "540818",
+    "kalshi_question": "Will Don\u2019t Look Down by Rod Wave have above 3000 Pure Album Sales (aka Product Sales) during the August 28, 2026 - September 03, 2026 tracking week?",
+    "polymarket_question": "New Playboi Carti Album before GTA VI?",
+    "reason": "Don't Look Down by Rod Wave have above 3000 Pure Album Sales (aka Product Sales) during the August 28, 2026 - September 03, 2026 tracking week and New Playboi Carti Album before GTA VI",
+    "fuzzy_score": 25.97402597402597,
+    "added": "2026-06-21"
+  },
+  "KXPUREALBUMS-DON26SEP03-3K::540819": {
+    "kalshi_id": "KXPUREALBUMS-DON26SEP03-3K",
+    "polymarket_id": "540819",
+    "kalshi_question": "Will Don\u2019t Look Down by Rod Wave have above 3000 Pure Album Sales (aka Product Sales) during the August 28, 2026 - September 03, 2026 tracking week?",
+    "polymarket_question": "Will Jesus Christ return before GTA VI?",
+    "reason": "Don't Look Down by Rod Wave have above 3000 Pure Album Sales (aka Product Sales) during the August 28, 2026 - September 03, 2026 tracking week and Will Jesus Christ return before GTA VI",
+    "fuzzy_score": 21.333333333333336,
+    "added": "2026-06-21"
+  },
+  "KXMELI-26AUGITEMS-P800000000::608365": {
+    "kalshi_id": "KXMELI-26AUGITEMS-P800000000",
+    "polymarket_id": "608365",
+    "kalshi_question": "Will MercadoLibre Inc. report above 800 million items sold in Q2 2026?",
+    "polymarket_question": "Will OpenAI\u2019s market cap be between $1T and $1.25T at market close on IPO day?",
+    "reason": "Will MercadoLibre Inc. report above 800 million items sold in Q2 2026? = Will OpenAI\u2019s market cap be between $750B and $1T at market close on IPO day",
+    "fuzzy_score": 34.95145631067961,
+    "added": "2026-06-21"
+  },
+  "KXMELI-26AUGITEMS-P800000000::608366": {
+    "kalshi_id": "KXMELI-26AUGITEMS-P800000000",
+    "polymarket_id": "608366",
+    "kalshi_question": "Will MercadoLibre Inc. report above 800 million items sold in Q2 2026?",
+    "polymarket_question": "Will OpenAI\u2019s market cap be between $1.25T and $1.5T at market close on IPO day?",
+    "reason": "Will MercadoLibre Inc. report above 800 million items sold in Q2 2026? = Will OpenAI\u2019s market cap be between $1T and $1.25T at market close on IPO day",
+    "fuzzy_score": 36.1904761904762,
+    "added": "2026-06-21"
+  },
+  "KXMELI-26AUGITEMS-P800000000::608367": {
+    "kalshi_id": "KXMELI-26AUGITEMS-P800000000",
+    "polymarket_id": "608367",
+    "kalshi_question": "Will MercadoLibre Inc. report above 800 million items sold in Q2 2026?",
+    "polymarket_question": "Will OpenAI\u2019s market cap be $1.5T or greater at market close on IPO day?",
+    "reason": "Will MercadoLibre Inc. report above 800 million items sold in Q2 2026? = Will OpenAI\u2019s market cap be $1.5T or greater at market close on IPO day",
+    "fuzzy_score": 34.34343434343434,
+    "added": "2026-06-21"
+  }
+}

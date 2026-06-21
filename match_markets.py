@@ -4,13 +4,17 @@ import fetch_markets as f
 from rapidfuzz import fuzz
 from google import genai
 from dotenv import load_dotenv
+from datetime import date
 import os
 import time
 from groq import Groq
+import httpx
+
+MATCHES_FILE = "confirmed_matches.json"
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GROQ_API_KEY=os.getenv("GROQ_API_KEY")
+GROQ_API_KEY=os.getenv("GROQ_API_KEY_2")
 
 # ── Normalization helpers ─────────────────────────────────────────
 
@@ -42,23 +46,30 @@ def extract_numbers(text):
 
 # ── LLM matching ──────────────────────────────────────────────────
 
-def llm_match_batch(kalshi_batch, polymarket_markets, client):
+def llm_match_batch(kalshi_batch, polymarket_markets):
     k_list = "\n".join(f"{m.market_id}: {m.match_key}" for m in kalshi_batch)
     p_list = "\n".join(f"{m.market_id}: {m.match_key}" for m in polymarket_markets)
 
-    prompt = f"""You are finding arbitrage opportunities between two prediction markets.
+    prompt = f"""You are matching prediction markets across two platforms for arbitrage.
 
-    Find pairs where both markets resolve YES under the IDENTICAL real-world outcome.
+        TWO MARKETS MATCH ONLY IF they would ALWAYS resolve YES or NO together under every possible real-world outcome.
 
-    KALSHI:
-    {k_list}
+        STRICT RULES:
+        - "Netherlands win World Cup" ≠ "Netherlands qualify for Semifinals" — different conditions
+        - "OpenAI IPO before Aug 1" = "OpenAI announces IPO before August" — same event, fine
+        - "Bitcoin above $150k by Jul 31" ≠ "Bitcoin above $150k by Dec 31" — different dates, NOT a match
+        - Do NOT match markets just because they involve the same person/team/topic
+        - Do NOT combine two separate real-world events into one match
+        - When in doubt, return NO match
 
-    POLYMARKET:å
-    {p_list}
+        KALSHI:
+        {k_list}
 
-    Return ONLY valid JSON:
-    {{"matches": [{{"kalshi_id": "...", "polymarket_id": "...", "reason": "..."}}]}}
-    If no matches exist, return {{"matches": []}}"""
+        POLYMARKET:
+        {p_list}
+
+        Return ONLY valid JSON:
+        {{"matches": [{{"kalshi_id": "...", "polymarket_id": "...", "reason": "..."}}]}}"""
 
     
     # response = client.models.generate_content(
@@ -71,42 +82,58 @@ def llm_match_batch(kalshi_batch, polymarket_markets, client):
     # },
     # )
     
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=4096
+    # response = client.chat.completions.create(
+    #     model="llama-3.3-70b-versatile",
+    #     messages=[{"role": "user", "content": prompt}],
+    #     max_tokens=4096
+    # )
+    
+    response = httpx.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": "llama3.1:8b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {"num_ctx": 8192}  # default 4096 is too small for your prompts
+        },
+        timeout=300  # local is slow, give it time
     )
 
     # text = response.text.strip()
-    text = response.choices[0].message.content.strip()
-    print(f"    [debug] {text[:150]}")
+    # text = response.choices[0].message.content.strip() 
     
+    text = response.json()["response"].strip()
+    print(f"    [debug] {text[:200]}")
     if "```" in text:
         text = text.split("```")[1].lstrip("json").strip()
     try:
+        start = text.index("{")
+        end = text.rindex("}") + 1
+        text = text[start:end]
         return json.loads(text).get("matches", [])
-    except json.JSONDecodeError:
+    except (ValueError, json.JSONDecodeError):
         print("    [warn] JSON parse failed")
         return []
 
 
 def llm_match_markets(kalshi_markets, polymarket_markets, batch_size=30):
     # client = genai.Client(api_key=GEMINI_API_KEY)s
-    client = Groq(api_key=GROQ_API_KEY)
+    # client = Groq(api_key=GROQ_API_KEY)
     all_matches = []
     seen = set()
 
     batches = [kalshi_markets[i:i+batch_size] for i in range(0, len(kalshi_markets), batch_size)]
     print(f"\n--- LLM Matching ({len(batches)} batches) ---")
 
-
+    start = time.time()
     for i, batch in enumerate(batches):
+        batch_start = time.time()
         print(f"  Batch {i+1}/{len(batches)} ({len(batch)} Kalshi markets)...")
         
         retries = 0
         while retries < 3:
             try:
-                matches = llm_match_batch(batch, polymarket_markets, client)
+                matches = llm_match_batch(batch, polymarket_markets)
                 for m in matches:
                     key = (m["kalshi_id"], m["polymarket_id"])
                     if key not in seen:
@@ -117,9 +144,12 @@ def llm_match_markets(kalshi_markets, polymarket_markets, batch_size=30):
             except Exception as e:
                 retries += 1
                 print(f"  Model unavailable (attempt {retries}/3), sleeping...")
-                time.sleep(5 ** retries)
+                time.sleep(2 ** retries)
         else:
             print(f"  Batch {i+1} failed after 3 attempts, skipping")
+        print(f"Time elapsed for batch {i+1}: {time.time() - batch_start} s")
+    
+    print(f"Total Time: {time.time() - start} s")
 
     return all_matches
 
@@ -150,7 +180,9 @@ def verify_llm_matches(matches, kalshi_markets, polymarket_markets):
             "confidence": confidence
         })
 
-    return sorted(verified, key=lambda x: x["fuzzy_score"], reverse=True)
+    for v in verified:
+        add_confirmed_match(v["kalshi"], v["polymarket"], v["reason"], v["fuzzy_score"])
+    return verified
 
 # ── Fuzzy matching (fallback / supplement) ────────────────────────
 
@@ -246,10 +278,36 @@ def print_fuzzy_results(matches):
         print(f"  Poly:   {pm.market_id} | {pm.match_key[:80]}")
         print("-" * 70)
 
-# ── Main ──────────────────────────────────────────────────────────
+def load_confirmed_matches():
+    if not os.path.exists(MATCHES_FILE):
+        return {}
+    with open(MATCHES_FILE) as f:
+        content = f.read().strip()
+        if not content:
+            return {}
+        return json.loads(content)
 
+def save_confirmed_matches(matches_dict):
+    with open(MATCHES_FILE, "w") as f:
+        json.dump(matches_dict, f, indent=2)
+
+def add_confirmed_match(km, pm, reason, fuzzy_score):
+    confirmed = load_confirmed_matches()
+    key = f"{km.market_id}::{pm.market_id}"
+    confirmed[key] = {
+        "kalshi_id": km.market_id,
+        "polymarket_id": pm.market_id,
+        "kalshi_question": km.match_key,
+        "polymarket_question": pm.match_key,
+        "reason": reason,
+        "fuzzy_score": fuzzy_score,
+        "added": str(date.today())
+    }
+    save_confirmed_matches(confirmed)
+    
+    
 if __name__ == "__main__":
-    kalshi, pm = f.find_markets(target=500)
+    kalshi, pm = f.find_markets(target=150)
 
     # Primary: LLM matching
     raw_matches = llm_match_markets(kalshi, pm)
