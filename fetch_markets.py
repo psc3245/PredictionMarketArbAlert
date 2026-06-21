@@ -117,39 +117,48 @@ def get_polymarket_markets(target):
     offset = 0
     limit = 100
     seen_ids = set()
-    
     begin = int(time.time())
-    
+
     while len(markets) < target:
         url = f"{POLYMARKET_API_URL}&limit={limit}&offset={offset}"
-        response = httpx.get(url)
         
+        retries = 0
+        while retries < 3:
+            try:
+                response = httpx.get(url, timeout=30)
+                break
+            except httpx.ReadTimeout:
+                retries += 1
+                print(f"  Polymarket timeout (attempt {retries}/3), retrying...")
+                time.sleep(2 ** retries)
+        else:
+            print("  Polymarket fetch failed after 3 attempts, stopping")
+            break
+
         if response.status_code != 200:
             break
-            
+
         data = response.json()
         if not data:
             break
-            
+
         new_markets_from_api = 0
         for d in data:
             market_id = d.get('id')
             if market_id in seen_ids:
                 continue
-                
             seen_ids.add(market_id)
             new_markets_from_api += 1
-            
             parsed = polymarket_to_market(d)
             if parsed:
                 markets.append(parsed)
-        
+
         if new_markets_from_api == 0 or len(data) < limit:
             break
-            
+
         offset += limit
-        
-    print(f"Polymarket targets found: {len(markets)} | Time Elapsed: {(int(time.time()) - begin)} sec")
+
+    print(f"Polymarket targets found: {len(markets)} | Time Elapsed: {int(time.time()) - begin} sec")
     return markets
 
 def get_kalshi_markets(target):
