@@ -62,7 +62,7 @@ def extract_numbers(text):
     for n in nums:
         try:
             val = float(n)
-            if val in {2025.0, 2026.0, 2027.0}:
+            if val in {2025.0, 2026.0, 2027.0} or (val == int(val) and 1 <= val <= 31):
                 continue
             if val > 1000:
                 from math import log10, floor
@@ -173,36 +173,39 @@ def save_match(km, pm, reason, fuzzy_score, date_diff):
         json.dump(confirmed, f_, indent=2)
 
 # ── Main ──────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
+def match():
     kalshi, pm = f.find_markets(target=1000)
+    matches = []
 
     candidates = find_keyword_candidates(kalshi, pm)
     candidates.sort(key=lambda pair: fuzz.token_sort_ratio(
         pair[0].match_key.lower(), pair[1].match_key.lower()
     ), reverse=True)
-    confirmed = llm_verify_candidates(candidates, target=10)
+    confirmed = llm_verify_candidates(candidates, target=50)
 
     print(f"\nSaving confirmed matches:")
     print("=" * 70)
     saved = 0
+    print(f"[matcher] LLM confirmed {len(confirmed)} matches, applying filters...")
     for m in confirmed:
         km, pm_m = m["kalshi"], m["polymarket"]
-        
+        score = fuzz.token_sort_ratio(
+            km.match_key.lower(), pm_m.match_key.lower()
+        )
         date_diff = abs((km.close_time - pm_m.close_time).days)
-        if date_diff > 45:
-            print(f"  [date mismatch {date_diff}d] {km.match_key[:45]} <-> {pm_m.match_key[:45]}")
-            continue
-        
         nums_k = extract_numbers(km.match_key)
         nums_p = extract_numbers(pm_m.match_key)
+
+        print(f"  score={score:.0f} date_diff={date_diff}d | {km.match_key[:40]} <-> {pm_m.match_key[:40]}")
+
         if nums_k and nums_p and nums_k.isdisjoint(nums_p):
-            print(f"  [number mismatch] ...")
+            print(f"    → rejected: number mismatch {nums_k} vs {nums_p}")
             continue
-        
-        score = fuzz.token_sort_ratio(km.match_key.lower(), pm_m.match_key.lower())
         if score < 65:
-            print(f"  [rejected fuzzy={score:.0f}] ...")
+            print(f"    → rejected: fuzzy too low")
             continue
-        
         save_match(km, pm_m, m["reason"], score, date_diff)
+        print(f"    → SAVED")
+        # matches.append({"km": km, "pm_m": pm_m, "reason": m["reason"], "score": score, "date_diff": date_diff})
+        
+    # return matches
