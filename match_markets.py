@@ -7,44 +7,72 @@ from datetime import date
 from rapidfuzz import fuzz
 import fetch_markets as f
 
-# ── Keyword groups ────────────────────────────────────────────────
-# Markets sharing keywords in the same group become candidates
-
 KEYWORD_GROUPS = [
-    {"bitcoin", "btc"},
-    {"openai", "gpt-6", "gpt6"},
-    {"anthropic", "claude", "mythos"},
-    {"gta", "grand theft auto"},
-    {"spacex", "starship"},
+    {"bitcoin", "btc", "150k"},
+    {"gpt-6", "gpt6", "gpt 6"},
+    {"gpt-5"},
+    {"mythos"},
+    {"gta vi", "gta6", "gta 6"},
+    {"starship"},
     {"netanyahu"},
     {"starmer"},
-    {"trump"},
-    {"mbappe", "mbappé", "kylian"},
-    {"messi", "lionel"},
-    {"ronaldo", "cristiano"},
-    {"haaland", "erling"},
-    {"cpi", "consumer price index"},
-    {"federal reserve", "fed rate", "fomc"},
-    {"unemployment", "payrolls", "nonfarm"},
-    {"nvidia", "nvda"},
-    {"zelensky", "ukraine", "nato"},
-    {"iran", "nuclear deal"},
+    {"openai ipo"},
+    {"anthropic ipo"},
+    {"iranian nuclear", "nuclear deal", "iran nuclear"},
+    {"trump leaves office", "trump out as president", "trump resign", "trump impeach"},
+    {"trump putin"},
+    {"mbappe", "mbappé"},
+    {"messi"},
+    {"ronaldo"},
+    {"haaland"},
+    {"fed rate cut", "fed rate hike", "federal reserve rate", "fomc rate"},
+    {"nonfarm payroll", "jobs added"},
+    {"nvidia largest", "nvidia market cap"},
+    {"zelensky"},
+    {"ukraine nato"},
 ]
 
-# ── Candidate generation ──────────────────────────────────────────
+def get_deadline_type(question):
+    q = question.lower()
+    event_deadlines = [
+        "before gta vi", "before gta 6", "before gta6",
+        "before bitcoin hits", "before the inauguration",
+        "before election", "before super bowl"
+    ]
+    if any(e in q for e in event_deadlines):
+        return "event"
+    if re.search(r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+\d{1,2}', q):
+        return "date"
+    if re.search(r'by (june|july|august|september|october|november|december)\b', q):
+        return "date"
+    return "unknown"
 
 def find_keyword_candidates(kalshi_markets, polymarket_markets):
     candidates = []
     seen = set()
+    SKIP_PREFIXES = ["what will", "who will say", "how many times will"]
 
     for km in kalshi_markets:
         k_text = km.match_key.lower()
+        if any(k_text.startswith(p) for p in SKIP_PREFIXES):
+            continue
+
+        k_deadline = get_deadline_type(km.match_key)
         matched_groups = [g for g in KEYWORD_GROUPS if any(kw in k_text for kw in g)]
         if not matched_groups:
             continue
 
         for pm in polymarket_markets:
             p_text = pm.match_key.lower()
+            p_deadline = get_deadline_type(pm.match_key)
+            
+            date_diff = abs((km.close_time - pm.close_time).days)
+            # if date_diff > 7:
+            #     continue
+
+            if k_deadline != "unknown" and p_deadline != "unknown" and k_deadline != p_deadline:
+                continue
+
             for group in matched_groups:
                 if any(kw in p_text for kw in group):
                     key = (km.market_id, pm.market_id)
@@ -54,6 +82,13 @@ def find_keyword_candidates(kalshi_markets, polymarket_markets):
                     break
 
     print(f"  Keyword filter: {len(candidates)} candidate pairs from {len(kalshi_markets)} Kalshi × {len(polymarket_markets)} Polymarket")
+    
+    print(f"\n--- Candidates ---")
+    for km, pm in candidates[:20]:
+        print(f"  {km.match_key[:60]}")
+        print(f"  {pm.match_key[:60]}")
+        print()
+    
     return candidates
 
 def extract_numbers(text):
@@ -62,7 +97,9 @@ def extract_numbers(text):
     for n in nums:
         try:
             val = float(n)
-            if val in {2025.0, 2026.0, 2027.0} or (val == int(val) and 1 <= val <= 31):
+            if val in {2025.0, 2026.0, 2027.0}:
+                continue
+            if val == int(val) and 1 <= val <= 31:
                 continue
             if val > 1000:
                 from math import log10, floor
@@ -73,36 +110,47 @@ def extract_numbers(text):
             continue
     return result
 
-# ── LLM verification of specific pairs ───────────────────────────
-
 def llm_verify_batch(pairs):
+    
     pairs_text = "\n".join(
         f"PAIR {i+1}: Kalshi='{km.match_key}' | Polymarket='{pm.match_key}'"
         for i, (km, pm) in enumerate(pairs)
     )
 
-    prompt = f"""For each pair, answer: do both markets resolve YES under the IDENTICAL real-world outcome?
+    prompt = f"""You are matching prediction markets across two platforms for arbitrage.
+
+TWO MARKETS MATCH ONLY IF they would ALWAYS resolve YES or NO together under every possible real-world outcome.
+
+STRICT RULES — read carefully:
+- "before Aug 1" ≠ "before GTA VI" — one is a fixed date, one depends on another event. NEVER match these.
+- "GPT-5.6" ≠ "GPT-6" — different model versions. NEVER match.
+- "qualify for Round of 16" ≠ "win the World Cup" — different conditions.
+- "What will Trump say during X speech?" is about speech content, NOT about Trump leaving office.
+- Different specific dates = different markets ("by June 30" ≠ "by August 1").
+- Same topic ≠ same market. Both must resolve YES under the identical real-world scenario.
+- When in doubt, return false.
+
+PASS examples:
+- "Will GPT-6 release before Sep 1?" = "Will GPT-6 release by September 2026?" ✓ same deadline
+- "Will Netanyahu leave office before Aug 1?" = "Will Netanyahu be out by August?" ✓ same event and deadline
+
+FAIL examples:
+- "Will GPT-6 release before Aug 1?" ≠ "Will GPT-6 release before GTA VI?" ✗ different deadline types
+- "Will 5 Trump endorsees lose primaries?" ≠ "Will Trump meet Putin in US?" ✗ completely different events
+- "Will GPT-5.6 release before Jul 31?" ≠ "Will GPT-6 release before GTA VI?" ✗ different model versions
 
 {pairs_text}
-
-Rules:
-- Same event AND same resolution condition required
-- Minor wording is fine: "before Aug 1" = "before August"
-- NOT ok: "qualify for Final" vs "win tournament" — different conditions
-- NOT ok: different date thresholds if they could resolve differently
-- NOT ok: different numeric thresholds
-- NOT ok: "before GTA VI" vs "before Sep 1" — one deadline is fixed, one depends on another event
-- NOT ok: GPT-5.6 vs GPT-6 — different version numbers are different products
 
 Return ONLY valid JSON:
 {{"results": [{{"pair": 1, "match": true, "reason": "..."}}]}}"""
 
     response = httpx.post(
         "http://localhost:11434/api/generate",
-        json={"model": "llama3.1:8b", "prompt": prompt, "stream": False, "options": {"num_ctx": 4096}},
+        json={"model": "qwen2.5:14b", "prompt": prompt, "stream": False, "options": {"num_ctx": 4096}},
         timeout=120
     )
     text = response.json()["response"].strip()
+    print(f"    [debug] {text}")
     try:
         start = text.index("{")
         end = text.rindex("}") + 1
@@ -121,7 +169,7 @@ def llm_verify_candidates(candidates, batch_size=10, target=10):
         if len(confirmed) >= target:
             print(f"  Target of {target} matches reached, stopping early")
             break
-            
+
         print(f"  Batch {i+1}/{len(batches)} | confirmed so far: {len(confirmed)}/{target}...")
         retries = 0
         while retries < 3:
@@ -145,7 +193,18 @@ def llm_verify_candidates(candidates, batch_size=10, target=10):
 
     return confirmed
 
-# ── Persistence ───────────────────────────────────────────────────
+def shares_entity(q1, q2):
+    """Check if two questions share a meaningful named entity."""
+    entities1 = set(re.findall(r'\b[A-Z][a-z]+\b|\b\d+(?:\.\d+)?[kKmMbBtT]?\b', q1))
+    entities2 = set(re.findall(r'\b[A-Z][a-z]+\b|\b\d+(?:\.\d+)?[kKmMbBtT]?\b', q2))
+    
+    ignore = {"Will", "The", "Before", "After", "When", "What", "Who", 
+              "How", "Any", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+    entities1 -= ignore
+    entities2 -= ignore
+    
+    return bool(entities1 & entities2)
 
 MATCHES_FILE = "confirmed_matches.json"
 
@@ -156,7 +215,7 @@ def load_confirmed_matches():
         content = f_.read().strip()
         return json.loads(content) if content else {}
 
-def save_match(km, pm, reason, fuzzy_score, date_diff):
+def save_match(km, pm, reason, fuzzy_score, date_diff=0):
     confirmed = load_confirmed_matches()
     key = f"{km.market_id}::{pm.market_id}"
     confirmed[key] = {
@@ -166,33 +225,33 @@ def save_match(km, pm, reason, fuzzy_score, date_diff):
         "polymarket_question": pm.match_key,
         "reason": reason,
         "fuzzy_score": fuzzy_score,
-        "added": str(date.today()),
-        "date_diff_days": date_diff
+        "date_diff_days": date_diff,
+        "added": str(date.today())
     }
     with open(MATCHES_FILE, "w") as f_:
         json.dump(confirmed, f_, indent=2)
 
-# ── Main ──────────────────────────────────────────────────────────
 def match():
-    kalshi, pm = f.find_markets(target=1000)
-    matches = []
+    kalshi, pm = f.find_markets(target=2000)
 
     candidates = find_keyword_candidates(kalshi, pm)
-    candidates.sort(key=lambda pair: fuzz.token_sort_ratio(
-        pair[0].match_key.lower(), pair[1].match_key.lower()
-    ), reverse=True)
-    confirmed = llm_verify_candidates(candidates, target=50)
+    candidates.sort(
+        key=lambda pair: fuzz.token_sort_ratio(
+            pair[0].match_key.lower(), pair[1].match_key.lower()
+        ),
+        reverse=True
+    )
+
+    confirmed = llm_verify_candidates(candidates, batch_size=10, target=50)
 
     print(f"\nSaving confirmed matches:")
     print("=" * 70)
     saved = 0
-    print(f"[matcher] LLM confirmed {len(confirmed)} matches, applying filters...")
     for m in confirmed:
         km, pm_m = m["kalshi"], m["polymarket"]
-        score = fuzz.token_sort_ratio(
-            km.match_key.lower(), pm_m.match_key.lower()
-        )
+        score = fuzz.token_sort_ratio(km.match_key.lower(), pm_m.match_key.lower())
         date_diff = abs((km.close_time - pm_m.close_time).days)
+        
         nums_k = extract_numbers(km.match_key)
         nums_p = extract_numbers(pm_m.match_key)
 
@@ -201,11 +260,17 @@ def match():
         if nums_k and nums_p and nums_k.isdisjoint(nums_p):
             print(f"    → rejected: number mismatch {nums_k} vs {nums_p}")
             continue
-        if score < 65:
+
+        if score < 55 and not shares_entity(km.match_key, pm_m.match_key):
+            print(f"    → rejected: low fuzzy and no shared entity")
+            continue
+
+        if score < 40:
             print(f"    → rejected: fuzzy too low")
             continue
+
         save_match(km, pm_m, m["reason"], score, date_diff)
+        saved += 1
         print(f"    → SAVED")
-        # matches.append({"km": km, "pm_m": pm_m, "reason": m["reason"], "score": score, "date_diff": date_diff})
-        
-    # return matches
+
+    print(f"\n{saved} matches saved to {MATCHES_FILE}")

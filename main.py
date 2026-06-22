@@ -4,9 +4,9 @@ import threading
 import match_markets as matcher
 import calculate_arbs as checker
 
-MATCH_INTERVAL  = 6 * 3600   # re-run matcher every 6 hours
-POLL_INTERVAL   = 60          # check arb every 60 seconds
-MATCH_TARGET    = 10          # how many confirmed matches to aim for
+MATCH_INTERVAL  = 6 * 3600
+POLL_INTERVAL   = 60
+MATCH_TARGET    = 10
 
 _matching_lock = threading.Lock()
 _is_matching   = False
@@ -48,11 +48,9 @@ def arb_loop():
         time.sleep(POLL_INTERVAL)
 
 if __name__ == "__main__":
-    # Run matcher once at startup in background, arb checker in foreground
     match_thread = threading.Thread(target=matcher_loop, daemon=True)
     match_thread.start()
-
-    # Give matcher a few seconds to start fetching before arb loop tries to read
+    
     time.sleep(5)
 
     arb_loop()

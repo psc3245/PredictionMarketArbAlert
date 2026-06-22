@@ -42,12 +42,10 @@ def check_arb(kp, pp, match):
     if kp is None or pp is None:
         return None
 
-    # Leg A: buy YES on Kalshi, buy NO on Polymarket
     cost_a = kp["yes_ask"] + pp["no_ask"]
     profit_a = round(1 - cost_a, 4)
 
     # Leg B: buy NO on Kalshi, buy YES on Polymarket
-    cost_b = kp["no_ask"] + pp["yes_ask"]
     profit_b = round(1 - cost_b, 4)
 
     best_profit = max(profit_a, profit_b)
@@ -92,7 +90,7 @@ def print_alert(alert):
     print(f"  P prices:   yes_ask={alert['poly_prices']['yes_ask']} no_ask={alert['poly_prices']['no_ask']}")
 
 if __name__ == "__main__":
-    POLL_INTERVAL = 60  # seconds
+    POLL_INTERVAL = 60
 
     print("Starting arb checker...")
     while True:
