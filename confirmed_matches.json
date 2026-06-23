@@ -1,0 +1,122 @@
+{
+  "KXGPT-OPENB-26JUL31::2100070": {
+    "kalshi_id": "KXGPT-OPENB-26JUL31",
+    "polymarket_id": "2100070",
+    "kalshi_question": "Will OpenAI release GPT-5.6 before Jul 31, 2026?",
+    "polymarket_question": "GPT-5.6 released by July 31, 2026?",
+    "reason": "Both markets are about the same release date for GPT-5.6.",
+    "fuzzy_score": 75.60975609756098,
+    "date_diff_days": 0,
+    "added": "2026-06-22"
+  },
+  "KXWCAWARD-26SBALL-EHAAL::2430978": {
+    "kalshi_id": "KXWCAWARD-26SBALL-EHAAL",
+    "polymarket_id": "2430978",
+    "kalshi_question": "Will Erling Haaland win the Silver Ball?",
+    "polymarket_question": "Will Erling Haaland win the Silver Ball at the 2026 FIFA World Cup?",
+    "reason": "Both markets are about winning the Silver Ball for Erling Haaland.",
+    "fuzzy_score": 74.76635514018693,
+    "date_diff_days": 11,
+    "added": "2026-06-22"
+  },
+  "KXWCAWARD-26GBALL-LMESS::2431013": {
+    "kalshi_id": "KXWCAWARD-26GBALL-LMESS",
+    "polymarket_id": "2431013",
+    "kalshi_question": "Will Lionel Messi win the Golden Ball?",
+    "polymarket_question": "Will Lionel Messi win the Golden Ball at the 2026 FIFA World Cup?",
+    "reason": "Both markets are asking about Lionel Messi winning the Golden Ball at the 2026 FIFA World Cup.",
+    "fuzzy_score": 73.7864077669903,
+    "date_diff_days": 11,
+    "added": "2026-06-22"
+  },
+  "KXWCGOALLEADER-26-EHAA::2069636": {
+    "kalshi_id": "KXWCGOALLEADER-26-EHAA",
+    "polymarket_id": "2069636",
+    "kalshi_question": "Will Erling Haaland lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Erling Haaland be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Both markets are asking about Erling Haaland being the top goalscorer at the 2026 FIFA World Cup.",
+    "fuzzy_score": 70.06369426751593,
+    "date_diff_days": 18,
+    "added": "2026-06-22"
+  },
+  "KXWCGOALLEADER-26-CRON::2069637": {
+    "kalshi_id": "KXWCGOALLEADER-26-CRON",
+    "polymarket_id": "2069637",
+    "kalshi_question": "Will Cristiano Ronaldo lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Cristiano Ronaldo be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Both markets are asking about Cristiano Ronaldo being the top goalscorer at the 2026 FIFA World Cup.",
+    "fuzzy_score": 69.93865030674846,
+    "date_diff_days": 18,
+    "added": "2026-06-22"
+  },
+  "KXWCGOALLEADER-26-LMES::2069635": {
+    "kalshi_id": "KXWCGOALLEADER-26-LMES",
+    "polymarket_id": "2069635",
+    "kalshi_question": "Will Lionel Messi lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Lionel Messi be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Leading in Goals = being the top scorer",
+    "fuzzy_score": 69.28104575163398,
+    "date_diff_days": 18,
+    "added": "2026-06-22"
+  },
+  "KXWCGOALLEADER-26-EHAA::2507688": {
+    "kalshi_id": "KXWCGOALLEADER-26-EHAA",
+    "polymarket_id": "2507688",
+    "kalshi_question": "Will Erling Haaland lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Erling Haaland score 5+ goals during the 2026 FIFA World Cup?",
+    "reason": "Leading in Goals = scoring at least 5+ goals (given context)",
+    "fuzzy_score": 68.83116883116884,
+    "date_diff_days": 4,
+    "added": "2026-06-22"
+  },
+  "KXWCGOALLEADER-26-KMBA::2069638": {
+    "kalshi_id": "KXWCGOALLEADER-26-KMBA",
+    "polymarket_id": "2069638",
+    "kalshi_question": "Will Kylian Mbappe lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Kylian Mbappe be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Leading in Goals = being the top scorer",
+    "fuzzy_score": 68.38709677419355,
+    "date_diff_days": 18,
+    "added": "2026-06-22"
+  },
+  "KXWCAWARD-26GBALL-EHAAL::2069636": {
+    "kalshi_id": "KXWCAWARD-26GBALL-EHAAL",
+    "polymarket_id": "2069636",
+    "kalshi_question": "Will Erling Haaland win the Golden Ball?",
+    "polymarket_question": "Will Erling Haaland be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Both predict Erling Haaland winning the Golden Ball or being top goalscorer, same event",
+    "fuzzy_score": 60.55045871559632,
+    "date_diff_days": 11,
+    "added": "2026-06-22"
+  },
+  "KXUSAIRANAGREEMENT-27-26AUG::2633429": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26AUG",
+    "polymarket_id": "2633429",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal before August?",
+    "polymarket_question": "US-Iran Final Nuclear Deal by August 18, 2026?",
+    "reason": "Both markets about the US agreeing to a new Iranian nuclear deal by August, same event and deadline type (before Aug).",
+    "fuzzy_score": 57.407407407407405,
+    "date_diff_days": 18,
+    "added": "2026-06-22"
+  },
+  "KXUSAIRANAGREEMENT-27-26AUG::2633430": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26AUG",
+    "polymarket_id": "2633430",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal before August?",
+    "polymarket_question": "US-Iran Final Nuclear Deal by August 31, 2026?",
+    "reason": "Same as Pair 6 with exact date matching 'by August'. Both resolve YES under the same condition.",
+    "fuzzy_score": 57.407407407407405,
+    "date_diff_days": 31,
+    "added": "2026-06-22"
+  },
+  "KXUSAIRANAGREEMENT-27-26AUG::2633428": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26AUG",
+    "polymarket_id": "2633428",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal before August?",
+    "polymarket_question": "US-Iran Final Nuclear Deal by August 13, 2026?",
+    "reason": "Same as Pair 6 but with an exact date. Still resolves YES if a deal is agreed before Aug 13.",
+    "fuzzy_score": 57.407407407407405,
+    "date_diff_days": 13,
+    "added": "2026-06-22"
+  }
+}

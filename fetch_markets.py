@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 import time
 
 today = int(time.time())
-sixty_days = int(time.time()) + (120 * 24 * 60 * 60)
-KALSHI_API_URL = f"https://external-api.kalshi.com/trade-api/v2/markets?status=open&min_close_ts={today}&max_close_ts={sixty_days}"
-POLYMARKET_API_URL = "https://gamma-api.polymarket.com/markets?active=true&closed=false"
+one_twenty_days = today + (120 * 24 * 60 * 60)
+KALSHI_API_URL = f"https://external-api.kalshi.com/trade-api/v2/markets?status=open&min_close_ts={today}&max_close_ts={one_twenty_days}"
+POLYMARKET_GAMMA_BASE = "https://gamma-api.polymarket.com/markets?active=true&closed=false"
 VOLUME_THRESHOLD = 1
 
 @dataclass
@@ -31,23 +31,23 @@ class Market:
     @property
     def no_bid(self) -> float:
         return round(1 - self.yes_ask, 4)
-    
-def polymarket_to_market(d):
+
+
+def polymarket_gamma_to_market(d):
     if not d.get('active', False): return None
     if d.get('closed', True): return None
     if d.get('volume24hr', 0) < VOLUME_THRESHOLD: return None
     if not d.get('clobTokenIds'): return None
     if not d.get('endDate'): return None
     if not d.get('slug'): return None
-    
+
     outcomes = json.loads(d.get('outcomes', '[]'))
     if outcomes != ["Yes", "No"]:
         return None
-        
+
     close_time = datetime.fromisoformat(d['endDate'].replace('Z', '+00:00'))
     close_ts = close_time.timestamp()
-    
-    if close_ts < today or close_ts > sixty_days:
+    if close_ts < today or close_ts > one_twenty_days:
         return None
 
     outcome_prices = json.loads(d.get('outcomePrices', '["0", "0"]'))
@@ -55,25 +55,19 @@ def polymarket_to_market(d):
         yes_price = float(outcome_prices[0])
     except (IndexError, ValueError):
         yes_price = 0.0
-        
+
     raw_desc = d.get('description', '')
     clean_desc = raw_desc.split('\n\n')[0] if raw_desc else ''
-    
-    title_parts = [
-        d.get('question', ''),
-        clean_desc
-    ]
-    
-    unique_parts = list(dict.fromkeys(p for p in title_parts if p))
+    unique_parts = list(dict.fromkeys(p for p in [d.get('question', ''), clean_desc] if p))
     full_question = " - ".join(unique_parts).strip()
-    
+
     return Market(
         platform="polymarket",
         market_id=d['id'],
         question=full_question,
         match_key=d.get('question', ''),
-        yes_ask=yes_price, 
-        yes_bid=yes_price, 
+        yes_ask=yes_price,
+        yes_bid=yes_price,
         volume_24h=d.get('volume24hr', 0),
         liquidity=d.get('liquidityNum', 0),
         close_time=close_time,
@@ -81,28 +75,21 @@ def polymarket_to_market(d):
         clob_token_ids=json.loads(d['clobTokenIds'])
     )
 
+
 def kalshi_to_market(d):
     if d.get('mve_collection_ticker'): return None
     if d.get('primary_participant_key'): return None
     if float(d.get('volume_24h_fp', '0')) < VOLUME_THRESHOLD: return None
-    
-    title_parts = [
-        d.get('title', ''),
-        d.get('yes_sub_title', ''),
-        d.get('rules_primary', '')
-    ]
-    
+
     unique_parts = []
-    for p in title_parts:
+    for p in [d.get('title', ''), d.get('yes_sub_title', ''), d.get('rules_primary', '')]:
         if p and p not in unique_parts:
             unique_parts.append(p)
-            
-    full_question = " - ".join(unique_parts).strip()
-    
+
     return Market(
         platform="kalshi",
         market_id=d['ticker'],
-        question=full_question,
+        question=" - ".join(unique_parts).strip(),
         match_key=d.get('title', ''),
         yes_ask=float(d.get('yes_ask_dollars', 0)),
         yes_bid=float(d.get('yes_bid_dollars', 0)),
@@ -112,89 +99,111 @@ def kalshi_to_market(d):
         url=f"https://kalshi.com/markets/{d['ticker']}"
     )
 
-def get_polymarket_markets(target):
-    markets = []
-    offset = 0
-    limit = 100
+
+def get_polymarket_gamma_markets(target=500):
     seen_ids = set()
+    markets = []
     begin = int(time.time())
 
-    while len(markets) < target:
-        url = f"{POLYMARKET_API_URL}&limit={limit}&offset={offset}"
-        
-        retries = 0
-        while retries < 3:
-            try:
-                response = httpx.get(url, timeout=30)
+    sort_orders = ["volume24hr", "liquidity", "startDate", "endDate"]
+
+    for sort in sort_orders:
+        url_base = f"{POLYMARKET_GAMMA_BASE}&order={sort}&ascending=false"
+        offset = 0
+        limit = 100
+
+        while len(markets) < target:
+            url = f"{url_base}&limit={limit}&offset={offset}"
+
+            retries = 0
+            while retries < 3:
+                try:
+                    response = httpx.get(url, timeout=30)
+                    break
+                except httpx.ReadTimeout:
+                    retries += 1
+                    print(f"  Polymarket timeout (attempt {retries}/3), retrying...")
+                    time.sleep(2 ** retries)
+            else:
+                print("  Polymarket fetch failed after 3 attempts, stopping")
                 break
-            except httpx.ReadTimeout:
-                retries += 1
-                print(f"  Polymarket timeout (attempt {retries}/3), retrying...")
-                time.sleep(2 ** retries)
-        else:
-            print("  Polymarket fetch failed after 3 attempts, stopping")
+
+            if response.status_code != 200:
+                break
+
+            data = response.json()
+            if not data:
+                break
+
+            new = 0
+            for d in data:
+                market_id = d.get('id')
+                if market_id in seen_ids:
+                    continue
+                seen_ids.add(market_id)
+                new += 1
+                parsed = polymarket_gamma_to_market(d)
+                if parsed:
+                    markets.append(parsed)
+
+            if new == 0 or len(data) < limit:
+                break
+
+            offset += limit
+
+        print(f"  After sort={sort}: {len(markets)} unique markets")
+        if len(markets) >= target:
             break
-
-        if response.status_code != 200:
-            break
-
-        data = response.json()
-        if not data:
-            break
-
-        new_markets_from_api = 0
-        for d in data:
-            market_id = d.get('id')
-            if market_id in seen_ids:
-                continue
-            seen_ids.add(market_id)
-            new_markets_from_api += 1
-            parsed = polymarket_to_market(d)
-            if parsed:
-                markets.append(parsed)
-
-        if new_markets_from_api == 0 or len(data) < limit:
-            break
-
-        offset += limit
 
     print(f"Polymarket targets found: {len(markets)} | Time Elapsed: {int(time.time()) - begin} sec")
     return markets
 
+
 def get_kalshi_markets(target):
     markets = []
     cursor = None
-    sleeps = 1
-    
     begin = int(time.time())
+
     with httpx.Client(timeout=10) as client:
         while len(markets) < target:
             url = f"{KALSHI_API_URL}&limit=100"
             if cursor:
                 url += f"&cursor={cursor}"
-        
+
             response = client.get(url)
 
             if response.status_code == 429:
                 time.sleep(1)
-                sleeps += 1
                 continue
-            
+
             data = response.json()
-                        
+
             for m in data['markets']:
                 parsed = kalshi_to_market(m)
                 if parsed:
                     markets.append(parsed)
-        
+
             cursor = data.get('cursor')
             if not cursor:
                 break
-    
-    print(f"Kalshi targets found: {len(markets)} | Time Elapsed: {(int(time.time()) - begin)} sec")
+
+    print(f"Kalshi targets found: {len(markets)} | Time Elapsed: {int(time.time()) - begin} sec")
     return markets
+
+
+def load_confirmed_matches():
+    import os
+    if not os.path.exists("confirmed_matches.json"):
+        return {}
+    with open("confirmed_matches.json") as f:
+        content = f.read().strip()
+        return json.loads(content) if content else {}
+
 
 def find_markets(target=2000):
     kalshi = get_kalshi_markets(target=target)
-    pm = get_polymarket_markets(target=target)
+    pm = get_polymarket_gamma_markets(target=target)
+    print(f"Total: {len(kalshi)} Kalshi | {len(pm)} Polymarket")
     return kalshi, pm
+
+find_markets()
