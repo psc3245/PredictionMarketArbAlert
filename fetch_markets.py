@@ -42,32 +42,41 @@ def polymarket_gamma_to_market(d):
     if not d.get('slug'): return None
 
     outcomes = json.loads(d.get('outcomes', '[]'))
-    if outcomes != ["Yes", "No"]:
+    
+    is_binary = outcomes == ["Yes", "No"]
+    is_neg_risk = d.get('negRisk', False)
+    if not is_binary and not is_neg_risk:
         return None
+
+    if is_neg_risk:
+        yes_ask = float(d.get('bestAsk') or 0)
+        yes_bid = float(d.get('bestBid') or 0)
+        if yes_ask == 0 and yes_bid == 0:
+            return None
+    else:
+        outcome_prices = json.loads(d.get('outcomePrices', '["0", "0"]'))
+        try:
+            yes_ask = float(outcome_prices[0])
+            yes_bid = yes_ask
+        except (IndexError, ValueError):
+            yes_ask = yes_bid = 0.0
 
     close_time = datetime.fromisoformat(d['endDate'].replace('Z', '+00:00'))
     close_ts = close_time.timestamp()
     if close_ts < today or close_ts > one_twenty_days:
         return None
 
-    outcome_prices = json.loads(d.get('outcomePrices', '["0", "0"]'))
-    try:
-        yes_price = float(outcome_prices[0])
-    except (IndexError, ValueError):
-        yes_price = 0.0
-
     raw_desc = d.get('description', '')
     clean_desc = raw_desc.split('\n\n')[0] if raw_desc else ''
     unique_parts = list(dict.fromkeys(p for p in [d.get('question', ''), clean_desc] if p))
-    full_question = " - ".join(unique_parts).strip()
 
     return Market(
         platform="polymarket",
         market_id=d['id'],
-        question=full_question,
+        question=" - ".join(unique_parts).strip(),
         match_key=d.get('question', ''),
-        yes_ask=yes_price,
-        yes_bid=yes_price,
+        yes_ask=yes_ask,
+        yes_bid=yes_bid,
         volume_24h=d.get('volume24hr', 0),
         liquidity=d.get('liquidityNum', 0),
         close_time=close_time,
@@ -81,8 +90,16 @@ def kalshi_to_market(d):
     if d.get('primary_participant_key'): return None
     if float(d.get('volume_24h_fp', '0')) < VOLUME_THRESHOLD: return None
 
+    title = d.get('title', '')
+    sub_title = d.get('yes_sub_title', '')
+
+    if sub_title and sub_title.lower() not in title.lower():
+        match_key = f"{title} - {sub_title}"
+    else:
+        match_key = title
+
     unique_parts = []
-    for p in [d.get('title', ''), d.get('yes_sub_title', ''), d.get('rules_primary', '')]:
+    for p in [title, sub_title, d.get('rules_primary', '')]:
         if p and p not in unique_parts:
             unique_parts.append(p)
 
@@ -90,7 +107,7 @@ def kalshi_to_market(d):
         platform="kalshi",
         market_id=d['ticker'],
         question=" - ".join(unique_parts).strip(),
-        match_key=d.get('title', ''),
+        match_key=match_key,
         yes_ask=float(d.get('yes_ask_dollars', 0)),
         yes_bid=float(d.get('yes_bid_dollars', 0)),
         volume_24h=float(d.get('volume_24h_fp', 0)),
@@ -205,5 +222,3 @@ def find_markets(target=2000):
     pm = get_polymarket_gamma_markets(target=target)
     print(f"Total: {len(kalshi)} Kalshi | {len(pm)} Polymarket")
     return kalshi, pm
-
-find_markets()

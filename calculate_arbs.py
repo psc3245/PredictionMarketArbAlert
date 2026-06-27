@@ -1,5 +1,4 @@
 import httpx
-import json
 import time
 from match_markets import load_confirmed_matches
 

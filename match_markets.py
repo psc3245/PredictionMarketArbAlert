@@ -218,17 +218,26 @@ def llm_verify_candidates(candidates, batch_size=10, target=10):
     return confirmed
 
 def shares_entity(q1, q2):
-    """Check if two questions share a meaningful named entity."""
-    entities1 = set(re.findall(r'\b[A-Z][a-z]+\b|\b\d+(?:\.\d+)?[kKmMbBtT]?\b', q1))
-    entities2 = set(re.findall(r'\b[A-Z][a-z]+\b|\b\d+(?:\.\d+)?[kKmMbBtT]?\b', q2))
+    ignore = {"will", "the", "before", "after", "when", "what", "who",
+              "how", "any", "that", "this", "from", "with", "have",
+              "been", "than", "their", "they", "would", "could", "should"}
     
-    ignore = {"Will", "The", "Before", "After", "When", "What", "Who", 
-              "How", "Any", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-    entities1 -= ignore
-    entities2 -= ignore
+    def get_tokens(q):
+        words = re.findall(r'\b[a-zA-Z]{4,}\b', q.lower())
+        return {w for w in words if w not in ignore}
     
-    return bool(entities1 & entities2)
+    t1 = get_tokens(q1)
+    t2 = get_tokens(q2)
+    
+    if t1 & t2:
+        return True
+    
+    for w1 in t1:
+        for w2 in t2:
+            if w1 in w2 or w2 in w1:
+                return True
+    
+    return False
 
 MATCHES_FILE = "confirmed_matches.json"
 
@@ -256,7 +265,7 @@ def save_match(km, pm, reason, fuzzy_score, date_diff=0):
         json.dump(confirmed, f_, indent=2)
 
 def match():
-    kalshi, pm = f.find_markets(target=500)
+    kalshi, pm = f.find_markets(target=1500)
 
     candidates = find_keyword_candidates(kalshi, pm)
     candidates.sort(
@@ -266,7 +275,7 @@ def match():
         reverse=True
     )
 
-    confirmed = llm_verify_candidates(candidates, batch_size=10, target=50)
+    confirmed = llm_verify_candidates(candidates, batch_size=10, target=100)
 
     print(f"\nSaving confirmed matches:")
     print("=" * 70)
@@ -285,10 +294,9 @@ def match():
             print(f"    → rejected: number mismatch {nums_k} vs {nums_p}")
             continue
 
-        if score < 55 and not shares_entity(km.match_key, pm_m.match_key):
+        if score < 50 and not shares_entity(km.match_key, pm_m.match_key):
             print(f"    → rejected: low fuzzy and no shared entity")
             continue
-
         if score < 40:
             print(f"    → rejected: fuzzy too low")
             continue
@@ -302,5 +310,3 @@ def match():
 
     print(f"\n{saved} matches saved to {MATCHES_FILE}")
     
-    
-match()
