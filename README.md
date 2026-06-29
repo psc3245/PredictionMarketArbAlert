@@ -20,7 +20,7 @@ Arbitrage occurs when the same underlying event is priced differently across two
 The program runs two loops concurrently:
 
 ### Matcher (runs every 6 hours)
-1. Fetches ~1600 Kalshi markets and ~1500 Polymarket markets
+1. Fetches Kalshi and Polymarket markets, quantity set as constant in code
 2. Filters candidates using keyword groups (bitcoin, gpt-6, netanyahu, haaland, etc.)
 3. Sends candidate pairs to a local LLM (Qwen 2.5:14b via Ollama) for semantic verification
 4. Applies post-LLM filters: fuzzy score, number mismatch, shared entity check
