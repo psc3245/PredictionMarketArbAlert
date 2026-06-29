@@ -1,4 +1,3 @@
-# main.py
 import time
 import threading
 import match_markets as matcher

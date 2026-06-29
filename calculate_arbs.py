@@ -1,5 +1,4 @@
 import httpx
-import json
 import time
 from match_markets import load_confirmed_matches
 
@@ -46,6 +45,7 @@ def check_arb(kp, pp, match):
     profit_a = round(1 - cost_a, 4)
 
     # Leg B: buy NO on Kalshi, buy YES on Polymarket
+    cost_b = kp["no_ask"] + pp["yes_ask"]
     profit_b = round(1 - cost_b, 4)
 
     best_profit = max(profit_a, profit_b)

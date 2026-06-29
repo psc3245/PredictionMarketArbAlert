@@ -110,39 +110,63 @@ def extract_numbers(text):
             continue
     return result
 
+def deadlines_compatible(km, pm_m):
+    """Returns False if one market clearly resolves before the other's deadline."""
+    k_close = km.close_time
+    p_close = pm_m.close_time
+    diff = abs((k_close - p_close).days)
+    
+    if diff <= 3:
+        return True
+    
+    event_keywords = ["before gta", "before bitcoin", "before inauguration"]
+    k_text = km.match_key.lower()
+    p_text = pm_m.match_key.lower()
+    if any(kw in k_text for kw in event_keywords) != any(kw in p_text for kw in event_keywords):
+        return False
+    
+    return True
+
+
 def llm_verify_batch(pairs):
     
     pairs_text = "\n".join(
         f"PAIR {i+1}: Kalshi='{km.match_key}' | Polymarket='{pm.match_key}'"
         for i, (km, pm) in enumerate(pairs)
     )
+    prompt = f"""You are verifying prediction market pairs for cross-platform arbitrage.
 
-    prompt = f"""You are matching prediction markets across two platforms for arbitrage.
+    Two markets are a VALID MATCH only if they would ALWAYS resolve YES or NO together under EVERY possible real-world outcome. If there is ANY scenario where they resolve differently, they do NOT match.
 
-TWO MARKETS MATCH ONLY IF they would ALWAYS resolve YES or NO together under every possible real-world outcome.
+    DEADLINE RULES (most common failure):
+    - "before August 1" ≠ "by August 13" — a deal signed Aug 5 resolves Kalshi NO but Polymarket YES. NOT a match.
+    - "before August 1" = "by July 31" — identical deadline. VALID.
+    - "before August" is ambiguous — only match if the other market's deadline is also end of July or earlier.
+    - "before GTA VI" ≠ any fixed date — event-based deadlines never match fixed dates.
+    - Different specific dates = different markets. Always reject.
 
-STRICT RULES — read carefully:
-- "before Aug 1" ≠ "before GTA VI" — one is a fixed date, one depends on another event. NEVER match these.
-- "GPT-5.6" ≠ "GPT-6" — different model versions. NEVER match.
-- "qualify for Round of 16" ≠ "win the World Cup" — different conditions.
-- "What will Trump say during X speech?" is about speech content, NOT about Trump leaving office.
-- Different specific dates = different markets ("by June 30" ≠ "by August 1").
-- Same topic ≠ same market. Both must resolve YES under the identical real-world scenario.
-- When in doubt, return false.
+    CONDITION RULES:
+    - "lead in goals" ≠ "score 5+ goals" — you can lead with 3 goals if others score fewer. NOT a match.
+    - "win the Golden Ball" ≠ "be the top goalscorer" — different awards. NOT a match.
+    - "win the Silver Ball" = "win the Silver Ball" — identical condition. VALID.
+    - "top goalscorer" = "lead in goals" ONLY IF the question explicitly says full tournament.
+    - "qualify for semifinals" ≠ "win the tournament" — different conditions.
+    - Same topic ≠ same market. The resolution condition must be identical.
 
-PASS examples:
-- "Will GPT-6 release before Sep 1?" = "Will GPT-6 release by September 2026?" ✓ same deadline
-- "Will Netanyahu leave office before Aug 1?" = "Will Netanyahu be out by August?" ✓ same event and deadline
+    VALID examples:
+    - "Will GPT-5.6 release before Jul 31?" = "GPT-5.6 released by July 31?" ✓ same date, same event
+    - "Will Haaland win the Silver Ball?" = "Will Haaland win the Silver Ball at 2026 FIFA World Cup?" ✓ same award
+    - "Will Messi lead World Cup in goals?" = "Will Messi be top goalscorer at 2026 World Cup?" ✓ same condition
 
-FAIL examples:
-- "Will GPT-6 release before Aug 1?" ≠ "Will GPT-6 release before GTA VI?" ✗ different deadline types
-- "Will 5 Trump endorsees lose primaries?" ≠ "Will Trump meet Putin in US?" ✗ completely different events
-- "Will GPT-5.6 release before Jul 31?" ≠ "Will GPT-6 release before GTA VI?" ✗ different model versions
+    INVALID examples:
+    - "Will Iran deal happen before August?" ≠ "Iran deal by August 13?" ✗ different deadlines
+    - "Will Haaland lead in goals?" ≠ "Will Haaland score 5+ goals?" ✗ different conditions
+    - "Will Haaland win Golden Ball?" ≠ "Will Haaland be top goalscorer?" ✗ different awards
 
-{pairs_text}
+    {pairs_text}
 
-Return ONLY valid JSON:
-{{"results": [{{"pair": 1, "match": true, "reason": "..."}}]}}"""
+    Return ONLY valid JSON:
+    {{"results": [{{"pair": 1, "match": true, "reason": "..."}}]}}"""
 
     response = httpx.post(
         "http://localhost:11434/api/generate",
@@ -194,17 +218,26 @@ def llm_verify_candidates(candidates, batch_size=10, target=10):
     return confirmed
 
 def shares_entity(q1, q2):
-    """Check if two questions share a meaningful named entity."""
-    entities1 = set(re.findall(r'\b[A-Z][a-z]+\b|\b\d+(?:\.\d+)?[kKmMbBtT]?\b', q1))
-    entities2 = set(re.findall(r'\b[A-Z][a-z]+\b|\b\d+(?:\.\d+)?[kKmMbBtT]?\b', q2))
+    ignore = {"will", "the", "before", "after", "when", "what", "who",
+              "how", "any", "that", "this", "from", "with", "have",
+              "been", "than", "their", "they", "would", "could", "should"}
     
-    ignore = {"Will", "The", "Before", "After", "When", "What", "Who", 
-              "How", "Any", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-    entities1 -= ignore
-    entities2 -= ignore
+    def get_tokens(q):
+        words = re.findall(r'\b[a-zA-Z]{4,}\b', q.lower())
+        return {w for w in words if w not in ignore}
     
-    return bool(entities1 & entities2)
+    t1 = get_tokens(q1)
+    t2 = get_tokens(q2)
+    
+    if t1 & t2:
+        return True
+    
+    for w1 in t1:
+        for w2 in t2:
+            if w1 in w2 or w2 in w1:
+                return True
+    
+    return False
 
 MATCHES_FILE = "confirmed_matches.json"
 
@@ -232,7 +265,7 @@ def save_match(km, pm, reason, fuzzy_score, date_diff=0):
         json.dump(confirmed, f_, indent=2)
 
 def match():
-    kalshi, pm = f.find_markets(target=2000)
+    kalshi, pm = f.find_markets(target=3000)
 
     candidates = find_keyword_candidates(kalshi, pm)
     candidates.sort(
@@ -242,7 +275,7 @@ def match():
         reverse=True
     )
 
-    confirmed = llm_verify_candidates(candidates, batch_size=10, target=50)
+    confirmed = llm_verify_candidates(candidates, batch_size=10, target=100)
 
     print(f"\nSaving confirmed matches:")
     print("=" * 70)
@@ -261,12 +294,14 @@ def match():
             print(f"    → rejected: number mismatch {nums_k} vs {nums_p}")
             continue
 
-        if score < 55 and not shares_entity(km.match_key, pm_m.match_key):
+        if score < 50 and not shares_entity(km.match_key, pm_m.match_key):
             print(f"    → rejected: low fuzzy and no shared entity")
             continue
-
         if score < 40:
             print(f"    → rejected: fuzzy too low")
+            continue
+        if not deadlines_compatible(km, pm_m):
+            print(f"    → rejected: deadline type mismatch")
             continue
 
         save_match(km, pm_m, m["reason"], score, date_diff)
@@ -274,3 +309,4 @@ def match():
         print(f"    → SAVED")
 
     print(f"\n{saved} matches saved to {MATCHES_FILE}")
+    
