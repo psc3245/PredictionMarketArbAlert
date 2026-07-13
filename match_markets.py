@@ -32,6 +32,14 @@ KEYWORD_GROUPS = [
     {"ukraine nato"},
 ]
 
+def has_antonym(q1, q2):
+    negation_words = [" not ", " won't ", " fail ", " no deal", " remain ", 
+                      " stay ", "won't be", "will not", "fails to"]
+    q1_neg = any(w in q1.lower() for w in negation_words)
+    q2_neg = any(w in q2.lower() for w in negation_words)
+
+    return q1_neg != q2_neg
+
 def get_deadline_type(question):
     q = question.lower()
     event_deadlines = [
@@ -136,32 +144,41 @@ def llm_verify_batch(pairs):
     )
     prompt = f"""You are verifying prediction market pairs for cross-platform arbitrage.
 
-    Two markets are a VALID MATCH only if they would ALWAYS resolve YES or NO together under EVERY possible real-world outcome. If there is ANY scenario where they resolve differently, they do NOT match.
+    Two markets are a VALID MATCH only if they would ALWAYS resolve YES or NO together under EVERY possible real-world outcome. If ANY scenario exists where they resolve differently, return false.
 
-    DEADLINE RULES (most common failure):
-    - "before August 1" ≠ "by August 13" — a deal signed Aug 5 resolves Kalshi NO but Polymarket YES. NOT a match.
-    - "before August 1" = "by July 31" — identical deadline. VALID.
-    - "before August" is ambiguous — only match if the other market's deadline is also end of July or earlier.
-    - "before GTA VI" ≠ any fixed date — event-based deadlines never match fixed dates.
-    - Different specific dates = different markets. Always reject.
+    ANTONYM RULE (critical):
+    - "Will X happen?" paired with "Will X NOT happen?" are OPPOSITES, not a match.
+    - "Will GPT-5.6 release before July?" ≠ "Will GPT-5.6 NOT release before August?" — these move together, not against each other. NOT a match.
+    - Watch for: "not", "fail to", "won't", "no deal", "remain", "stay" — these invert the resolution.
 
-    CONDITION RULES:
-    - "lead in goals" ≠ "score 5+ goals" — you can lead with 3 goals if others score fewer. NOT a match.
-    - "win the Golden Ball" ≠ "be the top goalscorer" — different awards. NOT a match.
-    - "win the Silver Ball" = "win the Silver Ball" — identical condition. VALID.
-    - "top goalscorer" = "lead in goals" ONLY IF the question explicitly says full tournament.
-    - "qualify for semifinals" ≠ "win the tournament" — different conditions.
-    - Same topic ≠ same market. The resolution condition must be identical.
+    DEADLINE RULES:
+    - "before September" means "before September 1" = "by August 31". NOT "by September 30".
+    - "before August" means "before August 1" = "by July 31".
+    - "this year" is too vague — only match if the other market has the same implied deadline.
+    - Different specific dates = different markets. "by June 30" ≠ "by August 13". Always reject.
+    - A deal signed August 5 resolves "before August" NO but "by August 31" YES. NOT a match.
+
+    SUBJECT RULES:
+    - Same person/team/topic ≠ same market. The resolution condition must be identical.
+    - "Messi or Ronaldo more goal contributions" ≠ "Messi and Ronaldo shake hands" — same names, completely different events.
+    - "Will Haaland lead in goals?" ≠ "Will Haaland score 5+ goals?" — different conditions.
+    - "Will X win Golden Ball?" ≠ "Will X be top goalscorer?" — different awards.
 
     VALID examples:
-    - "Will GPT-5.6 release before Jul 31?" = "GPT-5.6 released by July 31?" ✓ same date, same event
-    - "Will Haaland win the Silver Ball?" = "Will Haaland win the Silver Ball at 2026 FIFA World Cup?" ✓ same award
+    - "Will GPT-5.6 release before Jul 31?" = "GPT-5.6 released by July 31?" ✓ same date, same event, no negation
+    - "Will Haaland win Silver Ball?" = "Will Haaland win Silver Ball at 2026 FIFA World Cup?" ✓ same award
     - "Will Messi lead World Cup in goals?" = "Will Messi be top goalscorer at 2026 World Cup?" ✓ same condition
+    - "Will X win Golden Boot?" = "Will X be top goalscorer?" ✓ Golden Boot IS the top scorer award
+    
 
     INVALID examples:
-    - "Will Iran deal happen before August?" ≠ "Iran deal by August 13?" ✗ different deadlines
+    - "Will GPT-5.6 release before Jul 31?" ≠ "Will GPT-5.6 NOT release before August?" ✗ antonyms
+    - "Will Iran deal happen before August?" ≠ "Iran deal by September 30?" ✗ before Aug = by Jul 31, not Sep 30
+    - "Will Messi/Ronaldo have more goals?" ≠ "Will Messi and Ronaldo shake hands?" ✗ different events
     - "Will Haaland lead in goals?" ≠ "Will Haaland score 5+ goals?" ✗ different conditions
-    - "Will Haaland win Golden Ball?" ≠ "Will Haaland be top goalscorer?" ✗ different awards
+    - "Will X score 9+ goals?" ≠ "Will X be top goalscorer?" ✗ could lead with 8 goals
+    - "Will X win Silver Boot?" ≠ "Will X be top goalscorer?" ✗ Silver Boot = 2nd top scorer, not 1st  
+    - "Will X lead in goals?" ≠ "Will X be top goalscorer?" ✗ leading with fewer goals is possible
 
     {pairs_text}
 
@@ -265,7 +282,7 @@ def save_match(km, pm, reason, fuzzy_score, date_diff=0):
         json.dump(confirmed, f_, indent=2)
 
 def match():
-    kalshi, pm = f.find_markets(target=3000)
+    kalshi, pm = f.find_markets(target=500)
 
     candidates = find_keyword_candidates(kalshi, pm)
     candidates.sort(
@@ -303,6 +320,10 @@ def match():
         if not deadlines_compatible(km, pm_m):
             print(f"    → rejected: deadline type mismatch")
             continue
+            
+        if has_antonym(km.match_key, pm_m.match_key):
+            print(f"    → rejected: antonym questions")
+            continue
 
         save_match(km, pm_m, m["reason"], score, date_diff)
         saved += 1
@@ -310,3 +331,4 @@ def match():
 
     print(f"\n{saved} matches saved to {MATCHES_FILE}")
     
+match()

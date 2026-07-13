@@ -12,12 +12,12 @@
   "KXUSAIRANAGREEMENT-27-26OCT::2633427": {
     "kalshi_id": "KXUSAIRANAGREEMENT-27-26OCT",
     "polymarket_id": "2633427",
-    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year?",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before October",
     "polymarket_question": "US-Iran Final Nuclear Deal by July 31, 2026?",
-    "reason": "Same condition and identical deadline after resolving ambiguity ('this year' could be 2026).",
-    "fuzzy_score": 47.05882352941176,
+    "reason": "Both markets concern the same event (US agreeing to a new Iranian nuclear deal) with consistent deadlines ('this year' corresponds to 'by July 31, 2026').",
+    "fuzzy_score": 43.69747899159664,
     "date_diff_days": 61,
-    "added": "2026-06-23"
+    "added": "2026-06-30"
   },
   "KXUSAIRANAGREEMENT-27-26SEP::2633427": {
     "kalshi_id": "KXUSAIRANAGREEMENT-27-26SEP",
@@ -64,30 +64,30 @@
     "polymarket_id": "2069636",
     "kalshi_question": "Will Erling Haaland lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
     "polymarket_question": "Will Erling Haaland be the top goalscorer at the 2026 FIFA World Cup?",
-    "reason": "Both markets have the same condition: being the top goalscorer in the full tournament.",
+    "reason": "Both markets ask about Erling Haaland leading in goals at the same event with no negation.",
     "fuzzy_score": 70.06369426751593,
     "date_diff_days": 18,
-    "added": "2026-06-27"
+    "added": "2026-06-30"
   },
   "KXWCGOALLEADER-26-CRON::2069637": {
     "kalshi_id": "KXWCGOALLEADER-26-CRON",
     "polymarket_id": "2069637",
     "kalshi_question": "Will Cristiano Ronaldo lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
     "polymarket_question": "Will Cristiano Ronaldo be the top goalscorer at the 2026 FIFA World Cup?",
-    "reason": "Same condition for full tournament: 'lead in Goals' = 'top goalscorer'",
+    "reason": "Both markets ask about Cristiano Ronaldo being the top goalscorer without any negation or different conditions.",
     "fuzzy_score": 69.93865030674846,
     "date_diff_days": 18,
-    "added": "2026-06-27"
+    "added": "2026-06-30"
   },
   "KXWCGOALLEADER-26-LMES::2069635": {
     "kalshi_id": "KXWCGOALLEADER-26-LMES",
     "polymarket_id": "2069635",
     "kalshi_question": "Will Lionel Messi lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
     "polymarket_question": "Will Lionel Messi be the top goalscorer at the 2026 FIFA World Cup?",
-    "reason": "Same condition: Both markets require Messi to be the top scorer in the tournament",
+    "reason": "Both markets ask about Lionel Messi being the top goalscorer at the same event without negation or different conditions.",
     "fuzzy_score": 69.28104575163398,
     "date_diff_days": 18,
-    "added": "2026-06-27"
+    "added": "2026-06-30"
   },
   "KXWCGOALLEADER-26-EHAA::2507688": {
     "kalshi_id": "KXWCGOALLEADER-26-EHAA",
@@ -104,10 +104,10 @@
     "polymarket_id": "2069638",
     "kalshi_question": "Will Kylian Mbappe lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
     "polymarket_question": "Will Kylian Mbappe be the top goalscorer at the 2026 FIFA World Cup?",
-    "reason": "Same condition: Both markets require Mbappe to be the top scorer in the tournament",
+    "reason": "Both markets ask about Kylian Mbapp\u00e9 being the top goalscorer without negation or different conditions.",
     "fuzzy_score": 68.38709677419355,
     "date_diff_days": 18,
-    "added": "2026-06-27"
+    "added": "2026-06-30"
   },
   "KXWCAWARD-26GBALL-EHAAL::2069636": {
     "kalshi_id": "KXWCAWARD-26GBALL-EHAAL",
@@ -134,10 +134,10 @@
     "polymarket_id": "2633430",
     "kalshi_question": "Will the US agree to a new Iranian nuclear deal before August?",
     "polymarket_question": "US-Iran Final Nuclear Deal by August 31, 2026?",
-    "reason": "Identical deadlines, both by August 31.",
+    "reason": "Same event and deadline, different platforms - 'before August' = 'by August 31'",
     "fuzzy_score": 57.407407407407405,
     "date_diff_days": 31,
-    "added": "2026-06-27"
+    "added": "2026-06-30"
   },
   "KXUSAIRANAGREEMENT-27-26AUG::2633428": {
     "kalshi_id": "KXUSAIRANAGREEMENT-27-26AUG",
@@ -154,10 +154,10 @@
     "polymarket_id": "2431009",
     "kalshi_question": "Will Kylian Mbappe win the Golden Ball?",
     "polymarket_question": "Will Kylian Mbapp\u00e9 win the Golden Ball at the 2026 FIFA World Cup?",
-    "reason": "Same condition with specified event year: winning the Golden Ball at 2026 FIFA World Cup",
+    "reason": "Both markets ask if Kylian Mbapp\u00e9 will win the Golden Ball at the 2026 FIFA World Cup, which is an identical condition.",
     "fuzzy_score": 74.28571428571429,
     "date_diff_days": 11,
-    "added": "2026-06-27"
+    "added": "2026-06-30"
   },
   "KXWCMESSIRONALDO-26LMESCRON-CRON::2491965": {
     "kalshi_id": "KXWCMESSIRONALDO-26LMESCRON-CRON",
@@ -298,5 +298,55 @@
     "fuzzy_score": 45.45454545454546,
     "date_diff_days": 36,
     "added": "2026-06-27"
+  },
+  "KXWCGOALCOUNT-26EHAALA9-6::2507689": {
+    "kalshi_id": "KXWCGOALCOUNT-26EHAALA9-6",
+    "polymarket_id": "2507689",
+    "kalshi_question": "Will Erling Haaland score 6+ goals in the 2026 Men's FIFA World Cup?",
+    "polymarket_question": "Will Erling Haaland score 6+ goals during the 2026 FIFA World Cup?",
+    "reason": "Both markets refer to Haaland scoring 6+ goals during the same event, with identical conditions.",
+    "fuzzy_score": 88.05970149253731,
+    "date_diff_days": 1,
+    "added": "2026-06-30"
+  },
+  "KXWCGOALCOUNT-26KMBAPP10-5::2508298": {
+    "kalshi_id": "KXWCGOALCOUNT-26KMBAPP10-5",
+    "polymarket_id": "2508298",
+    "kalshi_question": "Will Kylian Mbappe score 5+ goals in the 2026 Men's FIFA World Cup?",
+    "polymarket_question": "Will Kylian Mbappe score 5+ goals during the 2026 FIFA World Cup?",
+    "reason": "Both markets refer to Mbappe scoring 5+ goals during the same event, with identical conditions.",
+    "fuzzy_score": 87.87878787878788,
+    "date_diff_days": 1,
+    "added": "2026-06-30"
+  },
+  "KXWCGOALCOUNT-26EHAALA9-9::2069636": {
+    "kalshi_id": "KXWCGOALCOUNT-26EHAALA9-9",
+    "polymarket_id": "2069636",
+    "kalshi_question": "Will Erling Haaland score 9+ goals in the 2026 Men's FIFA World Cup?",
+    "polymarket_question": "Will Erling Haaland be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Earning 9 or more goals directly correlates to being the top scorer given that no one else can score more than him if he does so.",
+    "fuzzy_score": 77.37226277372262,
+    "date_diff_days": 13,
+    "added": "2026-06-30"
+  },
+  "KXWCAWARD-26SBOOT-LMESS::2069635": {
+    "kalshi_id": "KXWCAWARD-26SBOOT-LMESS",
+    "polymarket_id": "2069635",
+    "kalshi_question": "Will Lionel Messi win the Silver Boot?",
+    "polymarket_question": "Will Lionel Messi be the top goalscorer at the 2026 FIFA World Cup?",
+    "reason": "Winning Silver Boot and being the top goalscorer are essentially the same condition in the context of the World Cup.",
+    "fuzzy_score": 55.23809523809524,
+    "date_diff_days": 12,
+    "added": "2026-06-30"
+  },
+  "KXUSAIRANAGREEMENT-27-26AUG::2633426": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26AUG",
+    "polymarket_id": "2633426",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal before August?",
+    "polymarket_question": "US-Iran Final Nuclear Deal by June 30, 2026?",
+    "reason": "Both markets ask about the same event with similar deadlines (before August and by June 30).",
+    "fuzzy_score": 50.943396226415096,
+    "date_diff_days": 31,
+    "added": "2026-06-30"
   }
 }
