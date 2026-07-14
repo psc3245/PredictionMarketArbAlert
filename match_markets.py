@@ -282,7 +282,7 @@ def save_match(km, pm, reason, fuzzy_score, date_diff=0):
         json.dump(confirmed, f_, indent=2)
 
 def match():
-    kalshi, pm = f.find_markets(target=500)
+    kalshi, pm = f.find_markets(target=1500)
 
     candidates = find_keyword_candidates(kalshi, pm)
     candidates.sort(

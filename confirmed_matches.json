@@ -2,12 +2,12 @@
   "KXUSAIRANAGREEMENT-27-26SEP::2633430": {
     "kalshi_id": "KXUSAIRANAGREEMENT-27-26SEP",
     "polymarket_id": "2633430",
-    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year?",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before September",
     "polymarket_question": "US-Iran Final Nuclear Deal by August 31, 2026?",
-    "reason": "Same condition and identical deadline after resolving ambiguity ('this year' could be 2026).",
-    "fuzzy_score": 48.07692307692307,
+    "reason": "Both markets have the same condition and deadline ('before September')",
+    "fuzzy_score": 45.52845528455285,
     "date_diff_days": 0,
-    "added": "2026-06-23"
+    "added": "2026-07-13"
   },
   "KXUSAIRANAGREEMENT-27-26OCT::2633427": {
     "kalshi_id": "KXUSAIRANAGREEMENT-27-26OCT",
@@ -84,10 +84,10 @@
     "polymarket_id": "2069635",
     "kalshi_question": "Will Lionel Messi lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
     "polymarket_question": "Will Lionel Messi be the top goalscorer at the 2026 FIFA World Cup?",
-    "reason": "Both markets ask about Lionel Messi being the top goalscorer at the same event without negation or different conditions.",
+    "reason": "Both markets are asking whether Lionel Messi will be the top goalscorer at the 2026 FIFA World Cup. The condition of 'leading in goals' and being 'top goalscorer' are considered equivalent.",
     "fuzzy_score": 69.28104575163398,
     "date_diff_days": 18,
-    "added": "2026-06-30"
+    "added": "2026-07-13"
   },
   "KXWCGOALLEADER-26-EHAA::2507688": {
     "kalshi_id": "KXWCGOALLEADER-26-EHAA",
@@ -104,10 +104,10 @@
     "polymarket_id": "2069638",
     "kalshi_question": "Will Kylian Mbappe lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
     "polymarket_question": "Will Kylian Mbappe be the top goalscorer at the 2026 FIFA World Cup?",
-    "reason": "Both markets ask about Kylian Mbapp\u00e9 being the top goalscorer without negation or different conditions.",
+    "reason": "Both markets ask whether Kylian Mbappe will be the top goalscorer at the 2026 FIFA World Cup, making them equivalent as leading in goals is considered to be the same as being the top scorer.",
     "fuzzy_score": 68.38709677419355,
     "date_diff_days": 18,
-    "added": "2026-06-30"
+    "added": "2026-07-13"
   },
   "KXWCAWARD-26GBALL-EHAAL::2069636": {
     "kalshi_id": "KXWCAWARD-26GBALL-EHAAL",
@@ -348,5 +348,115 @@
     "fuzzy_score": 50.943396226415096,
     "date_diff_days": 31,
     "added": "2026-06-30"
+  },
+  "KXBTCMAX100-26-SEP::2833125": {
+    "kalshi_id": "KXBTCMAX100-26-SEP",
+    "polymarket_id": "2833125",
+    "kalshi_question": "Will Bitcoin be above $100000 by October 1, 2026 at 12:00AM ET? - Before October 2026",
+    "polymarket_question": "Will the price of Bitcoin be above $60,000 on July 14?",
+    "reason": "Both markets ask if Bitcoin will be above $60,000 by their respective deadlines.",
+    "fuzzy_score": 56.11510791366907,
+    "date_diff_days": 78,
+    "added": "2026-07-13"
+  },
+  "KXBTCMAX100-26-SEP::2860514": {
+    "kalshi_id": "KXBTCMAX100-26-SEP",
+    "polymarket_id": "2860514",
+    "kalshi_question": "Will Bitcoin be above $100000 by October 1, 2026 at 12:00AM ET? - Before October 2026",
+    "polymarket_question": "Will the price of Bitcoin be above $62,000 on July 16?",
+    "reason": "Both markets ask if Bitcoin will be above $62,000 by their respective deadlines.",
+    "fuzzy_score": 56.11510791366907,
+    "date_diff_days": 76,
+    "added": "2026-07-13"
+  },
+  "KXGTA6-26AUG31::2732505": {
+    "kalshi_id": "KXGTA6-26AUG31",
+    "polymarket_id": "2732505",
+    "kalshi_question": "WIll GTA6 be released by Aug 31, 2026? - Before September 2026",
+    "polymarket_question": "Another GTA VI trailer released by August 31?",
+    "reason": "Both markets pertain to the release of GTA VI before September 2026, one specifically checking if another trailer is released by August 31.",
+    "fuzzy_score": 52.33644859813084,
+    "date_diff_days": 0,
+    "added": "2026-07-13"
+  },
+  "KXGTATRAILER-26SEP::2732505": {
+    "kalshi_id": "KXGTATRAILER-26SEP",
+    "polymarket_id": "2732505",
+    "kalshi_question": "Will another GTA VI trailer come out before Sep 2026? - Before September 2026",
+    "polymarket_question": "Another GTA VI trailer released by August 31?",
+    "reason": "Both markets pertain to the release of another GTA VI trailer before September 2026, with Polymarket specifying by August 31.",
+    "fuzzy_score": 50.81967213114754,
+    "date_diff_days": 0,
+    "added": "2026-07-13"
+  },
+  "KXUSAIRANAGREEMENT-27-26OCT::2633430": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26OCT",
+    "polymarket_id": "2633430",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before October",
+    "polymarket_question": "US-Iran Final Nuclear Deal by August 31, 2026?",
+    "reason": "Both markets refer to a US-Iran nuclear deal, with Kalshi's market being before October and Polymarket's by August 31 which falls within Kalshi's timeframe. Both resolve the same way under any scenario.",
+    "fuzzy_score": 46.28099173553719,
+    "date_diff_days": 30,
+    "added": "2026-07-13"
+  },
+  "KXUSAIRANAGREEMENT-27-26NOV::2633430": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26NOV",
+    "polymarket_id": "2633430",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before November",
+    "polymarket_question": "US-Iran Final Nuclear Deal by August 31, 2026?",
+    "reason": "Both markets have the same condition and deadline ('before November')",
+    "fuzzy_score": 45.90163934426229,
+    "date_diff_days": 61,
+    "added": "2026-07-13"
+  },
+  "KXUSAIRANAGREEMENT-27-26NOV::2696747": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26NOV",
+    "polymarket_id": "2696747",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before November",
+    "polymarket_question": "US-Iran Final Nuclear Deal by December 31, 2026?",
+    "reason": "Both markets are asking if a US-Iran deal will be finalized this year by their respective deadlines (Before November and by December 31, both fall under 'this year')",
+    "fuzzy_score": 45.16129032258065,
+    "date_diff_days": 31,
+    "added": "2026-07-13"
+  },
+  "KXUSAIRANAGREEMENT-27-26OCT::2696747": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26OCT",
+    "polymarket_id": "2696747",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before October",
+    "polymarket_question": "US-Iran Final Nuclear Deal by December 31, 2026?",
+    "reason": "Same implied deadline ('before October' for both), same condition (US-Iran nuclear deal).",
+    "fuzzy_score": 40.65040650406504,
+    "date_diff_days": 0,
+    "added": "2026-07-13"
+  },
+  "KXWCGOALLEADER-26-LMES::2763289": {
+    "kalshi_id": "KXWCGOALLEADER-26-LMES",
+    "polymarket_id": "2763289",
+    "kalshi_question": "Will Lionel Messi lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Lionel Messi score 11+ goals during the 2026 FIFA World Cup?",
+    "reason": "Scoring 11+ goals is a condition that can lead to being the top scorer, making it close but not identical to leading in goals. However, it's more precise than scoring exactly 9+.",
+    "fuzzy_score": 66.22516556291392,
+    "date_diff_days": 4,
+    "added": "2026-07-13"
+  },
+  "KXWCGOALLEADER-26-LMES::2763271": {
+    "kalshi_id": "KXWCGOALLEADER-26-LMES",
+    "polymarket_id": "2763271",
+    "kalshi_question": "Will Lionel Messi lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+    "polymarket_question": "Will Lionel Messi score 10+ goals during the 2026 FIFA World Cup?",
+    "reason": "Scoring 10+ goals is a condition that can lead to being the top scorer and is closer to leading in goals compared to just scoring 9+. This matches closely under the assumption of leading requires scoring more than others.",
+    "fuzzy_score": 66.22516556291392,
+    "date_diff_days": 4,
+    "added": "2026-07-13"
+  },
+  "KXUSAIRANAGREEMENT-27-26OCT::2696746": {
+    "kalshi_id": "KXUSAIRANAGREEMENT-27-26OCT",
+    "polymarket_id": "2696746",
+    "kalshi_question": "Will the US agree to a new Iranian nuclear deal this year? - Before October",
+    "polymarket_question": "US-Iran Final Nuclear Deal by September 30, 2026?",
+    "reason": "Both markets have the same implied deadline (before Oct) and are about the US agreeing to a new Iranian nuclear deal, though Polymarket specifies Sept 30 which is within this range.",
+    "fuzzy_score": 48.38709677419355,
+    "date_diff_days": 0,
+    "added": "2026-07-13"
   }
 }
