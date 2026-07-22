@@ -8,7 +8,7 @@ import pytest
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
-from util.match_markets import get_deadline, deadlines_match
+from util.match_markets import CandidatePairGenerator
 
 
 # ----------------------------
@@ -81,7 +81,7 @@ DATE_TESTS = [
 
 @pytest.mark.parametrize("question, expected", DATE_TESTS)
 def test_get_deadline(question, expected):
-    result = get_deadline(question)
+    result = CandidatePairGenerator.get_deadline(question)
 
     if expected is None:
         assert result is None
@@ -155,8 +155,8 @@ DEADLINE_PAIRS = [
 
 @pytest.mark.parametrize("question1, question2, expected", DEADLINE_PAIRS)
 def test_deadlines_match(question1, question2, expected):
-    d1 = get_deadline(question1)
-    d2 = get_deadline(question2)
+    d1 = CandidatePairGenerator.get_deadline(question1)
+    d2 = CandidatePairGenerator.get_deadline(question2)
 
     if expected is None:
         assert d1 is None or d2 is None
@@ -165,7 +165,7 @@ def test_deadlines_match(question1, question2, expected):
     assert d1 is not None
     assert d2 is not None
 
-    result = deadlines_match(
+    result = CandidatePairGenerator.deadlines_match(
         d1[0],
         d1[1],
         d2[0],
@@ -173,3 +173,104 @@ def test_deadlines_match(question1, question2, expected):
     )
 
     assert result == expected
+    
+CANDIDATE_PAIR_TESTS = [
+    # --- should become candidates ---
+
+    (
+        "2633430",
+        "US-Iran Final Nuclear Deal by August 31, 2026?",
+        "KXUSAIRANAGREEMENT-27-26SEP",
+        "Will the US agree to a new Iranian nuclear deal before September?",
+        True,
+    ),
+    (
+        "2100070",
+        "GPT-5.6 released by July 31, 2026?",
+        "KXGPT-OPENB-26JUL31",
+        "Will OpenAI release GPT-5.6 before Jul 31, 2026?",
+        True,
+    ),
+    (
+        "2430978",
+        "Will Erling Haaland win the Silver Ball at the 2026 FIFA World Cup?",
+        "KXWCGOALLEADER-26-EHAA",
+        "Will Erling Haaland lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?",
+        True,
+    ),
+    (
+        "999001",
+        "Will Messi win the Golden Ball?",
+        "KXTEST-MESSI",
+        "Will Lionel Messi be named tournament MVP?",
+        True,
+    ),
+
+    # --- should be rejected: deadline mismatch ---
+
+    (
+        "2633426",
+        "US-Iran Final Nuclear Deal by June 30, 2026?",
+        "KXUSAIRANAGREEMENT-27-26AUG",
+        "Will the US agree to a new Iranian nuclear deal before August 13?",
+        False,
+    ),
+    (
+        "999002",
+        "Will the announcement come before June 2026?",
+        "KXTEST-AFTER",
+        "Will the announcement come after June 2026?",
+        False,
+    ),
+
+    # --- should be rejected: no entity overlap ---
+
+    (
+        "999003",
+        "Will Bitcoin hit $150k before October?",
+        "KXTEST-UNRELATED",
+        "Will Cristiano Ronaldo win the Golden Ball before October?",
+        False,
+    ),
+
+    # --- should be rejected: one deadline missing ---
+
+    (
+        "999004",
+        "Will Messi retire before the 2026 World Cup?",
+        "KXTEST-NODATE",
+        "Will Messi retire?",
+        False,
+    ),
+
+    # --- known NER blind spot ---
+    # Update this expectation once you've decided how you want it handled.
+
+    pytest.param(
+        "2633429",
+        "US-Iran Final Nuclear Deal by August 18, 2026?",
+        "KXUSAIRANAGREEMENT-27-26AUG",
+        "Will the US agree to a new Iranian nuclear deal before August?",
+        False,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "pm_id, pm_q, k_id, k_q, expected",
+    CANDIDATE_PAIR_TESTS,
+)
+def test_create_candidate_pair(pm_id, pm_q, k_id, k_q, expected):
+    result = CandidatePairGenerator.create_candidate_pair(pm_id, pm_q, k_id, k_q)
+
+    if expected is None:
+        pytest.skip("Known behavior under investigation")
+
+    if expected:
+        assert result is not None
+        assert result.polymarket_id == pm_id
+        assert result.kalshi_id == k_id
+        assert result.pm_cands
+        assert result.k_cands
+    else:
+        assert result is None

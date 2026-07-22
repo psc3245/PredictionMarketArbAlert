@@ -128,7 +128,61 @@ YEARS = [
     "2028"
 ]
 
-NLP = spacy.load("en_core_web_lg")
+KEYWORD_GROUPS = [
+    # --- Award/title names (NER mis-tags these as FAC/ORG/nothing - confirmed) ---
+    {"golden ball", "golden boot", "silver ball", "silver boot",
+     "bronze ball", "bronze boot", "golden glove", "best player",
+     "player of the tournament", "top goalscorer", "top scorer",
+     "leading scorer", "mvp", "most valuable player"},
+    {"heisman"},
+    {"nobel prize", "nobel peace prize"},
+    {"oscar", "academy award"},
+    {"grammy"},
+    {"mvp award"},  # sports league regular-season/finals MVP, distinct from tournament MVP above
+
+    # --- Recurring event types (structural, not tied to any one edition/year) ---
+    {"world cup", "fifa world cup"},
+    {"super bowl"},
+    {"olympics", "olympic games"},
+    {"champions league"},
+    {"fomc", "federal reserve", "fed rate", "interest rate decision",
+     "rate cut", "rate hike"},
+    {"nonfarm payroll", "jobs report", "jobs added", "unemployment rate"},
+    {"cpi", "inflation report", "consumer price index"},
+    {"gdp report", "gdp growth"},
+    {"election", "presidential election", "general election"},
+    {"impeachment", "impeach"},
+    {"government shutdown"},
+    {"ipo", "initial public offering"},
+    {"stock split"},
+    {"earnings report", "earnings call"},
+    {"ceasefire", "peace deal", "peace agreement"},
+    {"nuclear deal", "nuclear agreement"},
+    {"sanctions"},
+    {"nato"},
+
+    # --- Hyphenated / cross-entity geopolitical phrasing (confirmed NER blind spot) ---
+    {"us-iran", "u.s.-iran", "us and iran"},
+    {"us-china", "u.s.-china", "us and china"},
+    {"israel-hamas", "israel and hamas"},
+    {"russia-ukraine", "russia and ukraine"},
+
+    # --- Product/version jargon (NER has no PRODUCT category reliability here) ---
+    {"gpt-6", "gpt6", "gpt 6"},
+    {"gpt-5", "gpt5"},
+    {"claude", "mythos", "opus", "sonnet"},
+    {"gemini"},
+    {"llama"},
+    {"gta vi", "gta6", "gta 6"},
+    {"starship"},
+
+    # --- Financial thresholds / index-level questions (numbers + product/asset name) ---
+    {"bitcoin", "btc"},
+    {"ethereum", "eth"},
+    {"nasdaq"},
+    {"s&p 500", "s&p500", "sp500"},
+    {"nvidia"},
+]
 
 @dataclass
 class MarketMatch:
@@ -148,236 +202,6 @@ class MarketMatch:
         # award (oscar, MVP, etc)
     category: str
     
-def normalize_text(text: str) -> str:
-    """Normalize text for comparison."""
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', ' ', text)
-    # words = text.split()
-    # words = [w for w in words if w not in self.NOISE_WORDS]
-    # return ' '.join(words)
-    return text
-
-def get_deadline(question: str) -> str:
-    
-    text_lower = normalize_text(question)
-    tokens = text_lower.split()
-    
-    raw_tokens = []
-
-    before_or_after = None
-    month = None
-    day = None
-    year = None
-    
-    if "before" in tokens:
-        before_or_after = "before"
-    elif "by" in tokens:
-        before_or_after = "by"
-    elif "after" in tokens:
-        before_or_after = "after"
-        
-    # Find the first month mentioned in the actual sentence
-    # Sort longest-first so "august" beats "aug"
-    found_month = None
-    first_pos = len(text_lower)
-
-    for month_name in sorted(MONTHS.keys(), key=len, reverse=True):
-        match = re.search(rf"\b{month_name}\b", text_lower)
-
-        if match and match.start() < first_pos:
-            first_pos = match.start()
-            found_month = month_name
-
-    if found_month:
-        month = MONTHS[found_month]
-        raw_tokens.append(found_month)
-
-        # Extract day/year when month is found
-        pattern = (
-            rf'\b{found_month}\.?,?\s*'
-            rf'(\d{{1,2}})'
-            rf'(?:st|nd|rd|th)?'
-            rf'(?:,?\s*(\d{{4}}))?\b'
-        )
-
-        d = re.search(pattern, text_lower)
-
-        if d:
-            day = d.group(1).zfill(2)
-            raw_tokens.append(d)
-
-            if d.group(2):
-                raw_tokens.append(d)
-                
-                year = d.group(2)
-
-    
-    # Support "thirty-first of August"
-    if day is None:
-
-        day_regex = "|".join(
-            sorted(
-                [d.replace("-", "[- ]") for d in DAYS.keys()],
-                key=len,
-                reverse=True
-            )
-        )
-
-        for month_name in sorted(MONTHS.keys(), key=len, reverse=True):
-
-            pattern = rf'\b({day_regex})\s+of\s+{month_name}\b'
-
-            m = re.search(pattern, text_lower)
-
-            if m:
-                month = MONTHS[month_name]
-                raw_tokens.append(month_name)
-                day = DAYS[m.group(1)]
-                raw_tokens.append(m.group(1))
-                break
-
-    
-    # Support standalone ordinal words
-    if day is None:
-
-        for d in sorted(DAYS.keys(), key=len, reverse=True):
-
-            if d in tokens:
-                day = DAYS[d]
-                raw_tokens.append(d)
-                break
-            
-    
-    # Relative dates
-    if "this month" in text_lower:
-        month = str(date.today().month % 12 + 1).zfill(2)
-        raw_tokens.append("this month")
-        
-    if "this year" in text_lower:
-        year = str(date.today().year)
-        raw_tokens.append("this year")
-        
-
-    # Extract years in sentence order
-    for token in tokens:
-        if token in YEARS:
-            year = token
-            raw_tokens.append(token)
-            break
-
-            
-    # No date found
-    if year is None and month is None and day is None:
-        return None
-
-    
-    # If month exists but day does not, assume first of month
-    if day is None and month is not None:
-        day = "01"
-
-    
-    # If month exists but year does not, assume current year
-    if month is not None and year is None:
-        year = str(date.today().year)
-
-    
-    # If only year exists, assume end of year
-    if month is None and day is None and year is not None:
-        before_or_after = "by"
-        month = "12"
-        day = "31"
-
-    
-    # Pad single digit days
-    if day is not None and len(str(day)) == 1:
-        day = "0" + str(day)
-
-    
-    # A standalone day is probably not a deadline
-    if day is not None and month is None and year is None:
-        return None
-
-            
-    return (before_or_after, f"{month}-{day}-{year}", raw_tokens)
-
-def get_candidates(question):
-    SENTENCE_OPENERS = ["will", "what", "who", "how", "does", ]
-    
-    tokens = question.split()
-    if tokens[0].lower() in SENTENCE_OPENERS:
-        tokens = tokens[1:]
-        
-    stripped = ' '.join(tokens)
-    
-    doc = NLP(stripped)
-    
-    ents = [e.text for e in doc.ents if e.label_ != "DATE"]
-    
-    return ents
-
-def get_whats_left(question):
-    deadline = get_deadline(question)
-    candidates = get_candidates(question)
-    
-    tokens = normalize_text(question).split()
-
-    filtered = []
-
-    entity_words = set()
-    for entity in candidates:
-        entity_words.update(normalize_text(entity).split())
-
-    deadline_words = set()
-    if deadline is not None:
-        _, _, raw_tokens = deadline
-        for token in raw_tokens:
-            if isinstance(token, re.Match):
-                deadline_words.update(normalize_text(token.group(0)).split())
-            else:
-                deadline_words.update(normalize_text(str(token)).split())
-                
-    print(f"  candidates: {candidates}")
-    print(f"  entity_words: {entity_words}") 
-
-    for token in tokens:
-        if token in DAYS:
-            continue
-        elif token in {"before", "after", "by"}:
-            continue
-        elif token in YEARS:
-            continue
-        elif token in MONTHS:
-            continue
-        elif token in entity_words:
-            continue
-        elif token in deadline_words:
-            continue
-
-        filtered.append(token)
-
-    return filtered
-
-def deadlines_match(before_or_after1, d1, before_or_after2, d2):
-    m1, day1, y1 = map(int, d1.split("-"))
-    date1 = date(year=y1, month=m1, day=day1)
-
-    m2, day2, y2 = map(int, d2.split("-"))
-    date2 = date(year=y2, month=m2, day=day2)
-
-    q1 = "before" if before_or_after1 in {"before", "by"} else before_or_after1
-    q2 = "before" if before_or_after2 in {"before", "by"} else before_or_after2
-
-    if q1 == q2:
-        return abs((date1 - date2).days) <= TOLERANCE_DAYS
-
-    if q1 == "before" and q2 == "after":
-        return date2 + timedelta(days=1) == date1
-
-    if q1 == "after" and q2 == "before":
-        return date1 + timedelta(days=1) == date2
-
-    return False
-
 @dataclass
 class CandidatePair:
     # PM Things
@@ -391,97 +215,281 @@ class CandidatePair:
     k_deadline: tuple[str, str]
     k_cands: list[str]
     
+class CandidatePairGenerator:
     
-def create_candidate_pair(pm_id, pm_q, k_id, k_q):
-    pm_result = get_deadline(pm_q)
-    k_result = get_deadline(k_q)
+    def __init__(self):
+        self.NLP = spacy.load("en_core_web_lg")
+        
+    def normalize_text(self, text: str) -> str:
+        """Normalize text for comparison."""
+        text = text.lower()
+        text = re.sub(r'[^\w\s]', ' ', text)
+        # words = text.split()
+        # words = [w for w in words if w not in self.NOISE_WORDS]
+        # return ' '.join(words)
+        return text
 
-    pm_b_or_a, pm_deadline = (pm_result[0], pm_result[1]) if pm_result else (None, None)
-    k_b_or_a, k_deadline = (k_result[0], k_result[1]) if k_result else (None, None)
-    
-    if pm_deadline is None and k_deadline is None:
-        pass
+    def get_deadline(self, question: str) -> str:
+        
+        text_lower = self.normalize_text(question)
+        tokens = text_lower.split()
+        
+        raw_tokens = []
 
-    elif pm_deadline is None or k_deadline is None:
-        return None
+        before_or_after = None
+        month = None
+        day = None
+        year = None
+        
+        if "before" in tokens:
+            before_or_after = "before"
+        elif "by" in tokens:
+            before_or_after = "by"
+        elif "after" in tokens:
+            before_or_after = "after"
+            
+        # Find the first month mentioned in the actual sentence
+        # Sort longest-first so "august" beats "aug"
+        found_month = None
+        first_pos = len(text_lower)
 
-    elif not deadlines_match(pm_b_or_a, pm_deadline, k_b_or_a, k_deadline):
-        return None
-    
-    pm_cands = get_candidates(pm_q)
-    k_cands = get_candidates(k_q)
-    
-    pm_words = {w for c in pm_cands for w in normalize_text(c).split()}
-    k_words = {w for c in k_cands for w in normalize_text(c).split()}
-    has_overlap = bool(pm_words & k_words)
-    
-    if has_overlap:
-        return CandidatePair(polymarket_id=pm_id, polymarket_question=pm_q, pm_deadline=(pm_b_or_a, pm_deadline), pm_cands=pm_cands,
-                            kalshi_id=k_id, kalshi_question=k_q, k_deadline=(k_b_or_a, k_deadline), k_cands=k_cands)
-    else:
-        return None
-    
-CANDIDATE_PAIR_TESTS = [
-    # --- should become candidates (deadline compatible + entity overlap) ---
+        for month_name in sorted(MONTHS.keys(), key=len, reverse=True):
+            match = re.search(rf"\b{month_name}\b", text_lower)
 
-    # same entity, same condition, phrasing-convention date difference
-    ("2633430", "US-Iran Final Nuclear Deal by August 31, 2026?",
-     "KXUSAIRANAGREEMENT-27-26SEP", "Will the US agree to a new Iranian nuclear deal before September?"),
+            if match and match.start() < first_pos:
+                first_pos = match.start()
+                found_month = month_name
 
-    # same entity, exact matching date, different formatting
-    ("2100070", "GPT-5.6 released by July 31, 2026?",
-     "KXGPT-OPENB-26JUL31", "Will OpenAI release GPT-5.6 before Jul 31, 2026?"),
+        if found_month:
+            month = MONTHS[found_month]
+            raw_tokens.append(found_month)
 
-    # same entity, DIFFERENT condition - should still become a candidate,
-    # since condition-matching is the LLM's job, not this step's
-    ("2430978", "Will Erling Haaland win the Silver Ball at the 2026 FIFA World Cup?",
-     "KXWCGOALLEADER-26-EHAA", "Will Erling Haaland lead FIFA World Cup in Goals for the 2026 World Cup Full Tournament?"),
+            # Extract day/year when month is found
+            pattern = (
+                rf'\b{found_month}\.?,?\s*'
+                rf'(\d{{1,2}})'
+                rf'(?:st|nd|rd|th)?'
+                rf'(?:,?\s*(\d{{4}}))?\b'
+            )
 
-    # neither side has an extractable deadline - should still pass through
-    # (both-None case, testing the fix from last round)
-    ("999001", "Will Messi win the Golden Ball?",
-     "KXTEST-MESSI", "Will Lionel Messi be named tournament MVP?"),
+            d = re.search(pattern, text_lower)
 
-    # --- should be rejected: deadline mismatch (hard reject) ---
+            if d:
+                day = d.group(1).zfill(2)
+                raw_tokens.append(d)
 
-    # same entity/topic, meaningfully different explicit dates
-    ("2633426", "US-Iran Final Nuclear Deal by June 30, 2026?",
-     "KXUSAIRANAGREEMENT-27-26AUG", "Will the US agree to a new Iranian nuclear deal before August 13?"),
+                if d.group(2):
+                    raw_tokens.append(d)
+                    
+                    year = d.group(2)
 
-    # same topic, opposite qualifier direction, same date
-    ("999002", "Will the announcement come before June 2026?",
-     "KXTEST-AFTER", "Will the announcement come after June 2026?"),
+        
+        # Support "thirty-first of August"
+        if day is None:
 
-    # --- should be rejected: no entity overlap ---
+            day_regex = "|".join(
+                sorted(
+                    [d.replace("-", "[- ]") for d in DAYS.keys()],
+                    key=len,
+                    reverse=True
+                )
+            )
 
-    # unrelated topics entirely, no shared entities, dates may or may not match
-    ("999003", "Will Bitcoin hit $150k before October?",
-     "KXTEST-UNRELATED", "Will Cristiano Ronaldo win the Golden Ball before October?"),
+            for month_name in sorted(MONTHS.keys(), key=len, reverse=True):
 
-    # --- should be rejected: one side has a date, other doesn't (per your policy) ---
+                pattern = rf'\b({day_regex})\s+of\s+{month_name}\b'
 
-    ("999004", "Will Messi retire before the 2026 World Cup?",
-     "KXTEST-NODATE", "Will Messi retire?"),
+                m = re.search(pattern, text_lower)
 
-    # --- known NER blind spot - worth seeing how it behaves, not asserting an outcome ---
+                if m:
+                    month = MONTHS[month_name]
+                    raw_tokens.append(month_name)
+                    day = DAYS[m.group(1)]
+                    raw_tokens.append(m.group(1))
+                    break
 
-    # hyphenated entity + award name in both - overlap depends entirely on
-    # whether "US" alone is enough shared signal, or whether this silently
-    # fails due to spaCy missing "Iran" as its own entity
-    ("2633429", "US-Iran Final Nuclear Deal by August 18, 2026?",
-     "KXUSAIRANAGREEMENT-27-26AUG", "Will the US agree to a new Iranian nuclear deal before August?"),
-]
+        
+        # Support standalone ordinal words
+        if day is None:
 
+            for d in sorted(DAYS.keys(), key=len, reverse=True):
 
-def print_candidate_pairs():
-    for pm_id, pm_q, k_id, k_q in CANDIDATE_PAIR_TESTS:
-        result = create_candidate_pair(pm_id, pm_q, k_id, k_q)
-        status = "CANDIDATE" if result else "rejected"
-        print(f"[{status}] PM: {pm_q}")
-        print(f"           K:  {k_q}")
-        if result:
-            print(f"           pm_cands={result.pm_cands}  k_cands={result.k_cands}")
-        print()
+                if d in tokens:
+                    day = DAYS[d]
+                    raw_tokens.append(d)
+                    break
+                
+        
+        # Relative dates
+        if "this month" in text_lower:
+            month = str(date.today().month % 12 + 1).zfill(2)
+            raw_tokens.append("this month")
+            
+        if "this year" in text_lower:
+            year = str(date.today().year)
+            raw_tokens.append("this year")
+            
 
+        # Extract years in sentence order
+        for token in tokens:
+            if token in YEARS:
+                year = token
+                raw_tokens.append(token)
+                break
 
-print_candidate_pairs()
+                
+        # No date found
+        if year is None and month is None and day is None:
+            return None
+
+        
+        # If month exists but day does not, assume first of month
+        if day is None and month is not None:
+            day = "01"
+
+        
+        # If month exists but year does not, assume current year
+        if month is not None and year is None:
+            year = str(date.today().year)
+
+        
+        # If only year exists, assume end of year
+        if month is None and day is None and year is not None:
+            before_or_after = "by"
+            month = "12"
+            day = "31"
+
+        
+        # Pad single digit days
+        if day is not None and len(str(day)) == 1:
+            day = "0" + str(day)
+
+        
+        # A standalone day is probably not a deadline
+        if day is not None and month is None and year is None:
+            return None
+
+                
+        return (before_or_after, f"{month}-{day}-{year}", raw_tokens)
+
+    def get_candidates(self, question):
+        SENTENCE_OPENERS = ["will", "what", "who", "how", "does", ]
+        
+        tokens = question.split()
+        if tokens[0].lower() in SENTENCE_OPENERS:
+            tokens = tokens[1:]
+            
+        stripped = ' '.join(tokens)
+        
+        doc = self.NLP(stripped)
+        
+        ents = [e.text for e in doc.ents if e.label_ != "DATE"]
+        
+        return ents
+
+    def get_whats_left(self, question):
+        deadline = self.get_deadline(question)
+        candidates = self.get_candidates(question)
+        
+        tokens = self.normalize_text(question).split()
+
+        filtered = []
+
+        entity_words = set()
+        for entity in candidates:
+            entity_words.update(self.normalize_text(entity).split())
+
+        deadline_words = set()
+        if deadline is not None:
+            _, _, raw_tokens = deadline
+            for token in raw_tokens:
+                if isinstance(token, re.Match):
+                    deadline_words.update(self.normalize_text(token.group(0)).split())
+                else:
+                    deadline_words.update(self.normalize_text(str(token)).split())
+                    
+        print(f"  candidates: {candidates}")
+        print(f"  entity_words: {entity_words}") 
+
+        for token in tokens:
+            if token in DAYS:
+                continue
+            elif token in {"before", "after", "by"}:
+                continue
+            elif token in YEARS:
+                continue
+            elif token in MONTHS:
+                continue
+            elif token in entity_words:
+                continue
+            elif token in deadline_words:
+                continue
+
+            filtered.append(token)
+
+        return filtered
+
+    def deadlines_match(self, before_or_after1, d1, before_or_after2, d2):
+        m1, day1, y1 = map(int, d1.split("-"))
+        date1 = date(year=y1, month=m1, day=day1)
+
+        m2, day2, y2 = map(int, d2.split("-"))
+        date2 = date(year=y2, month=m2, day=day2)
+
+        q1 = "before" if before_or_after1 in {"before", "by"} else before_or_after1
+        q2 = "before" if before_or_after2 in {"before", "by"} else before_or_after2
+
+        if q1 == q2:
+            return abs((date1 - date2).days) <= TOLERANCE_DAYS
+
+        if q1 == "before" and q2 == "after":
+            return date2 + timedelta(days=1) == date1
+
+        if q1 == "after" and q2 == "before":
+            return date1 + timedelta(days=1) == date2
+
+        return False
+
+    def keyword_pool_overlap(self, pm_q, k_q):
+        pm_normal = self.normalize_text(pm_q)
+        k_normal = self.normalize_text(k_q)
+
+        for keyword_group in KEYWORD_GROUPS:
+            for keyword in keyword_group:
+                pattern = rf'\b{re.escape(keyword)}\b'
+                if re.search(pattern, pm_normal) and re.search(pattern, k_normal):
+                    return True
+
+        return False
+        
+        
+    def create_candidate_pair(self, pm_id, pm_q, k_id, k_q):
+        pm_result = self.get_deadline(pm_q)
+        k_result = self.get_deadline(k_q)
+
+        pm_b_or_a, pm_deadline = (pm_result[0], pm_result[1]) if pm_result else (None, None)
+        k_b_or_a, k_deadline = (k_result[0], k_result[1]) if k_result else (None, None)
+        
+        if pm_deadline is None and k_deadline is None:
+            pass
+
+        elif pm_deadline is None or k_deadline is None:
+            return None
+
+        elif not self.deadlines_match(pm_b_or_a, pm_deadline, k_b_or_a, k_deadline):
+            return None
+        
+        pm_cands = self.get_candidates(pm_q)
+        k_cands = self.get_candidates(k_q)
+        
+        pm_words = {w for c in pm_cands for w in self.normalize_text(c).split()}
+        k_words = {w for c in k_cands for w in self.normalize_text(c).split()}
+        has_overlap = bool(pm_words & k_words)
+        
+        keyword_overlap = self.keyword_pool_overlap(pm_q, k_q)
+        
+        if has_overlap or keyword_overlap:
+            return CandidatePair(polymarket_id=pm_id, polymarket_question=pm_q, pm_deadline=(pm_b_or_a, pm_deadline), pm_cands=pm_cands,
+                                kalshi_id=k_id, kalshi_question=k_q, k_deadline=(k_b_or_a, k_deadline), k_cands=k_cands)
+        else:
+            return None
