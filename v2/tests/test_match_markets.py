@@ -4,13 +4,13 @@ from datetime import date
 
 import pytest
 
-# Add v2 directory to Python path so we import util/match_markets.py
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
-from util.match_markets import CandidatePairGenerator
+from util.match_markets import CandidatePairGenerator, LLM_Verifier
 
-
+gen = CandidatePairGenerator()
+llm = LLM_Verifier()
 # ----------------------------
 # Date extraction tests
 # ----------------------------
@@ -79,9 +79,14 @@ DATE_TESTS = [
 ]
 
 
+
+# ----------------------------
+# Date extraction tests
+# ----------------------------
+
 @pytest.mark.parametrize("question, expected", DATE_TESTS)
 def test_get_deadline(question, expected):
-    result = CandidatePairGenerator.get_deadline(question)
+    result = gen.get_deadline(question)
 
     if expected is None:
         assert result is None
@@ -152,11 +157,10 @@ DEADLINE_PAIRS = [
     ),
 ]
 
-
 @pytest.mark.parametrize("question1, question2, expected", DEADLINE_PAIRS)
 def test_deadlines_match(question1, question2, expected):
-    d1 = CandidatePairGenerator.get_deadline(question1)
-    d2 = CandidatePairGenerator.get_deadline(question2)
+    d1 = gen.get_deadline(question1)
+    d2 = gen.get_deadline(question2)
 
     if expected is None:
         assert d1 is None or d2 is None
@@ -165,15 +169,14 @@ def test_deadlines_match(question1, question2, expected):
     assert d1 is not None
     assert d2 is not None
 
-    result = CandidatePairGenerator.deadlines_match(
-        d1[0],
-        d1[1],
-        d2[0],
-        d2[1],
-    )
-
+    result = gen.deadlines_match(d1[0], d1[1], d2[0], d2[1])
     assert result == expected
-    
+
+
+# ----------------------------
+# create_candidate_pair tests
+# ----------------------------
+
 CANDIDATE_PAIR_TESTS = [
     # --- should become candidates ---
 
@@ -255,13 +258,9 @@ CANDIDATE_PAIR_TESTS = [
     ),
 ]
 
-
-@pytest.mark.parametrize(
-    "pm_id, pm_q, k_id, k_q, expected",
-    CANDIDATE_PAIR_TESTS,
-)
+@pytest.mark.parametrize("pm_id, pm_q, k_id, k_q, expected", CANDIDATE_PAIR_TESTS)
 def test_create_candidate_pair(pm_id, pm_q, k_id, k_q, expected):
-    result = CandidatePairGenerator.create_candidate_pair(pm_id, pm_q, k_id, k_q)
+    result = gen.create_candidate_pair(pm_id, pm_q, k_id, k_q)
 
     if expected is None:
         pytest.skip("Known behavior under investigation")
@@ -274,3 +273,113 @@ def test_create_candidate_pair(pm_id, pm_q, k_id, k_q, expected):
         assert result.k_cands
     else:
         assert result is None
+
+
+# ----------------------------
+# keyword_pool_overlap tests
+# ----------------------------
+
+KEYWORD_OVERLAP_TESTS = [
+    (
+        "US-Iran Final Nuclear Deal by August 31, 2026?",
+        "Will the US agree to a new Iranian nuclear deal before September?",
+        True,
+    ),
+    (
+        "Will Erling Haaland win the Silver Ball at the World Cup?",
+        "Will Haaland claim the Silver Ball this tournament?",
+        True,
+    ),
+    (
+        "Will Bitcoin hit $150k before October?",
+        "Will Cristiano Ronaldo win the Golden Ball before October?",
+        False,
+    ),
+]
+
+
+@pytest.mark.parametrize("q1, q2, expected", KEYWORD_OVERLAP_TESTS)
+def test_keyword_pool_overlap(q1, q2, expected):
+    assert gen.keyword_pool_overlap(q1, q2) == expected
+
+
+# ----------------------------
+# check_professional_matchup tests
+# ----------------------------
+
+MATCHUP_TESTS = [
+    (
+        "Will the Kansas City Chiefs beat the Buffalo Bills?",
+        {"kansas city chiefs", "buffalo bills"},
+    ),
+    (
+        "Will the Kansas City Chiefs win the Super Bowl?",
+        {"kansas city chiefs"},
+    ),
+    (
+        "Will inflation drop below 3 percent?",
+        set(),
+    ),
+    (
+        "Will the Giants make the playoffs?",  # ambiguous alias, no disambiguation
+        set(),
+    ),
+    (
+        "Will the New York Giants make the playoffs?",
+        {"new york giants"},
+    ),
+]
+
+
+@pytest.mark.parametrize("question, expected", MATCHUP_TESTS)
+def test_check_professional_matchup(question, expected):
+    result = gen.check_professional_matchup(question)
+    assert set(result) == expected
+    
+LLM_VERIFICATION_TESTS = [
+
+    (
+        "Will Erling Haaland lead the World Cup in goals?",
+        "Will Erling Haaland score 9+ goals at the World Cup?",
+        False,
+    ),
+
+    (
+        "Will Cristiano Ronaldo win the Silver Boot?",
+        "Will Cristiano Ronaldo finish as the tournament's second-leading goalscorer?",
+        True,
+    ),
+    
+        (
+        "Will the Fed cut interest rates?",
+        "Will the FOMC lower rates?",
+        True,
+    ),
+
+    (
+        "Will Messi win the Golden Ball?",
+        "Will Messi be named tournament MVP?",
+        True,
+    ),
+
+    (
+        "Will Messi and Ronaldo shake hands during the World Cup?",
+        "Will Messi or Ronaldo have more goal contributions?",
+        False,
+    ),
+
+    (
+        "Will GPT-6 release before August?",
+        "Will GPT-6 NOT release before August?",
+        False,
+    ),
+]
+
+@pytest.mark.parametrize("q1, q2, expected", LLM_VERIFICATION_TESTS)
+def test_llm_verification(q1, q2, expected):
+    res = gen.create_candidate_pair(pm_id="", k_id="", pm_q=q1, k_q=q2)
+    if res == None:
+        assert res == expected
+    else:
+        result = llm.llm_check_pair(res)
+        assert result == expected
