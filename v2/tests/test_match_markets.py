@@ -11,10 +11,10 @@ from util.match_markets import CandidatePairGenerator, LLM_Verifier
 
 gen = CandidatePairGenerator()
 llm = LLM_Verifier()
+
 # ----------------------------
 # Date extraction tests
 # ----------------------------
-
 DATE_TESTS = [
     (
         "US-Iran Final Nuclear Deal by August 31, 2026?",
@@ -78,12 +78,6 @@ DATE_TESTS = [
     ),
 ]
 
-
-
-# ----------------------------
-# Date extraction tests
-# ----------------------------
-
 @pytest.mark.parametrize("question, expected", DATE_TESTS)
 def test_get_deadline(question, expected):
     result = gen.get_deadline(question)
@@ -94,11 +88,9 @@ def test_get_deadline(question, expected):
         qualifier, deadline, _ = result
         assert (qualifier, deadline) == expected
 
-
 # ----------------------------
 # Deadline matching tests
 # ----------------------------
-
 DEADLINE_PAIRS = [
     # Compatible
     (
@@ -174,9 +166,8 @@ def test_deadlines_match(question1, question2, expected):
 
 
 # ----------------------------
-# create_candidate_pair tests
+# Candidate pair creation tests
 # ----------------------------
-
 CANDIDATE_PAIR_TESTS = [
     # --- should become candidates ---
 
@@ -276,9 +267,8 @@ def test_create_candidate_pair(pm_id, pm_q, k_id, k_q, expected):
 
 
 # ----------------------------
-# keyword_pool_overlap tests
+# Keyword pool overlap tests
 # ----------------------------
-
 KEYWORD_OVERLAP_TESTS = [
     (
         "US-Iran Final Nuclear Deal by August 31, 2026?",
@@ -304,9 +294,8 @@ def test_keyword_pool_overlap(q1, q2, expected):
 
 
 # ----------------------------
-# check_professional_matchup tests
+# Professional sports matchup tests
 # ----------------------------
-
 MATCHUP_TESTS = [
     (
         "Will the Kansas City Chiefs beat the Buffalo Bills?",
@@ -330,12 +319,14 @@ MATCHUP_TESTS = [
     ),
 ]
 
-
 @pytest.mark.parametrize("question, expected", MATCHUP_TESTS)
 def test_check_professional_matchup(question, expected):
     result = gen.check_professional_matchup(question)
     assert set(result) == expected
     
+# ----------------------------
+# LLM verification tests
+# ----------------------------
 LLM_VERIFICATION_TESTS = [
 
     (
@@ -375,6 +366,9 @@ LLM_VERIFICATION_TESTS = [
     ),
 ]
 
+# ----------------------------
+# Unmatched LLM verification tests
+# ----------------------------
 @pytest.mark.parametrize("q1, q2, expected", LLM_VERIFICATION_TESTS)
 def test_llm_verification(q1, q2, expected):
     res = gen.create_candidate_pair(pm_id="", k_id="", pm_q=q1, k_q=q2)
@@ -383,3 +377,72 @@ def test_llm_verification(q1, q2, expected):
     else:
         result = llm.llm_check_pair(res)
         assert result == expected
+        
+UNMATCHED_VERIFICATION_TESTS = [
+    (
+        "Will the deal happen before September?",
+        "Will the deal happen by August 31, 2026?",
+        True,
+    ),
+    (
+        "Will the deal happen before September?",
+        "Will the deal happen by September 30, 2026?",
+        False,
+    ),
+
+    (
+        "Will GPT-6 release before August?",
+        "Will GPT-6 NOT release before August?",
+        False,
+    ),
+    (
+        "Will the announcement come before June 2026?",
+        "Will the announcement come after June 2026?",
+        False,
+    ),
+
+    (
+        "Will the Chiefs beat the Bills?",
+        "Will the Chiefs beat the Broncos?",
+        False,
+    ),
+    (
+        "Will the Chiefs beat the Bills?",
+        "Chiefs vs Bills: who wins the AFC Championship?",
+        False,
+    ),
+    (
+        "Will Mbappe win the Golden Boot at the World Cup?",
+        "Will Mbappe be the tournament's top goalscorer?",
+        True,
+    ),
+    # known limitation - it struggles with this unmatched
+    # (
+    #     "Will Messi win the Golden Ball?",
+    #     "Will Messi be the tournament's top goalscorer?",
+    #     False,
+    # ),
+
+    (
+        "Will Bitcoin hit $150k before October?",
+        "Will Cristiano Ronaldo win the Golden Ball before October?",
+        False,
+    ),
+
+    (
+        "Will Messi and Ronaldo shake hands during the World Cup?",
+        "Will Messi or Ronaldo have more goal contributions?",
+        False,
+    ),
+
+    (
+        "Will the Fed cut interest rates before September?",
+        "Will the Fed cut interest rates before September?",
+        True,
+    ),
+]
+
+@pytest.mark.parametrize("q1, q2, expected", UNMATCHED_VERIFICATION_TESTS)
+def test_unmatched_llm_verification(q1, q2, expected):
+    result = llm.compare_unmatched_pair(q1, q2)
+    assert result == expected

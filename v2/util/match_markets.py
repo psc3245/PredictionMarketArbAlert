@@ -277,7 +277,7 @@ class MarketMatch:
         # sports games (NFL, NBA, etc) 
         # elections 
         # award (oscar, MVP, etc)
-    category: str
+    category: str | None
     
 @dataclass
 class CandidatePair:
@@ -645,7 +645,7 @@ class LLM_Verifier:
     def __init__(self):
         pass
     
-    def build_verification_prompt(self, pair: CandidatePair) -> str:
+    def build_pair_verification_prompt(self, pair: CandidatePair) -> str:
         pm_deadline_str = (
             f"{pair.pm_deadline[0]} {pair.pm_deadline[1]}"
             if pair.pm_deadline and pair.pm_deadline[1] else "none stated"
@@ -685,7 +685,7 @@ class LLM_Verifier:
     - "Golden Boot" / "top goalscorer" are the same objective stat-based outcome — IS a match.
     - "Golden Ball" / "MVP" / "Player of the Tournament" are subjectively voted — NOT interchangeable with objective stat outcomes (goals scored, leading scorer), even for the same person.
     - "Golden Ball" / "MVP", "Michael Jordan Trophy" / "MVP"  - these resolve to the same outcome. Referring to winning an award by the name of the trophy representing it IS the same as winning the award title.
-    - "Lead the tournament in X" does not guarantee a specific numeric threshold of X was crossed — NOT a match against a "score N+" market unless N is provably the minimum needed to lead.
+    - "Lead the tournament in X" and "score N+ X" are NEVER a match, regardless of whether N seems high enough to plausibly guarantee the lead. Leading is a relative comparison against whoever else is in the tournament; a specific numeric threshold is an absolute count. Do not reason about whether N is "probably enough" to lead — always treat these as different conditions.
     - "Silver Boot" means second-highest scorer specifically, not "top" — do not confuse with Golden Boot/top scorer.
     - Rate-related phrasing ("Fed cuts rates" / "FOMC lowers rates" / "rate cut") describing the same underlying decision IS a match regardless of which institution name is used.
 
@@ -693,7 +693,7 @@ class LLM_Verifier:
     {{"match": true or false, "reason": "one sentence, state the specific rule or domain fact that determined this, not just a restatement of the two questions"}}"""
     
     def llm_check_pair(self, pair):
-        prompt = self.build_verification_prompt(pair)
+        prompt = self.build_pair_verification_prompt(pair)
 
         response = httpx.post(
             "http://localhost:11434/api/generate",
@@ -708,6 +708,48 @@ class LLM_Verifier:
             data = json.loads(text[start:end])
         except (ValueError, json.JSONDecodeError):
             print(f"  [parse failure] raw response: {text}")
-            return None  # or raise, or retry - worth deciding the policy here
+            return None
 
+        return data.get("match")
+    
+    def build_unmatched_verification_prompt(self, k_q, pm_q):
+        return f"""You are verifying whether two prediction market questions describe the exact same real-world resolution condition, for cross-platform arbitrage matching.
+
+    IMPORTANT: unlike normal verification, NOTHING about these two questions has been pre-checked. You must independently verify ALL of the following before considering this a match:
+    - The deadlines must resolve to the same real-world date/timeframe. "Before September" means before September 1 (i.e. by August 31), not by September 30.
+    - The questions must not be negations/antonyms of each other (watch for "not", "won't", "fail to", "remain", "stay").
+    - If both mention specific sports teams, they must be the exact same two teams / same matchup.
+    - The actual resolution CONDITION must be the same event — use domain knowledge where relevant (e.g. "Golden Boot" = top goalscorer, an objective stat; "Golden Ball"/"MVP" are subjective awards NOT interchangeable with objective stats, even for the same person).
+
+    Two markets are a MATCH only if they would resolve YES/NO identically under every realistic outcome. Notable domain-knowledge cases:
+    - "Golden Boot" / "top goalscorer" are the same objective stat-based outcome — IS a match.
+    - "Golden Ball" / "MVP" / "Player of the Tournament" are subjectively voted — NOT interchangeable with objective stat outcomes (goals scored, leading scorer), even for the same person.
+    - "Golden Ball" / "MVP", "Michael Jordan Trophy" / "MVP"  - these resolve to the same outcome. Referring to winning an award by the name of the trophy representing it IS the same as winning the award title.
+    - "Lead the tournament in X" and "score N+ X" are NEVER a match, regardless of whether N seems high enough to plausibly guarantee the lead. Leading is a relative comparison against whoever else is in the tournament; a specific numeric threshold is an absolute count. Do not reason about whether N is "probably enough" to lead — always treat these as different conditions.
+    - "Silver Boot" means second-highest scorer specifically, not "top" — do not confuse with Golden Boot/top scorer.
+    - Rate-related phrasing ("Fed cuts rates" / "FOMC lowers rates" / "rate cut") describing the same underlying decision IS a match regardless of which institution name is used.
+
+    Kalshi question: "{k_q}"
+    Polymarket question: "{pm_q}"
+
+    Return ONLY valid JSON, no preamble, no markdown fences:
+    {{"match": true or false, "reason": "one sentence, name the specific deadline/negation/team/domain-knowledge rule that determined this"}}"""
+    
+    def compare_unmatched_pair(self, k_q, pm_q):
+        prompt = self.build_unmatched_verification_prompt(k_q, pm_q)
+        response = httpx.post(
+            "http://localhost:11434/api/generate",
+            json={"model": "qwen2.5:14b", "prompt": prompt, "stream": False, "options": {"num_ctx": 4096}},
+            timeout=120
+        )
+        text = response.json()["response"].strip()
+        print(text)
+        try:
+            start = text.index("{")
+            end = text.rindex("}") + 1
+            data = json.loads(text[start:end])
+        except (ValueError, json.JSONDecodeError):
+            print(f"  [parse failure] raw response: {text}")
+            return None
+        
         return data.get("match")
