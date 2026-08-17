@@ -180,6 +180,7 @@ def get_kalshi_markets(target):
     markets = []
     cursor = None
     begin = int(time.time())
+    count_429 = 0
 
     with httpx.Client(timeout=10) as client:
         while len(markets) < target:
@@ -190,7 +191,10 @@ def get_kalshi_markets(target):
             response = client.get(url)
 
             if response.status_code == 429:
+                count_429 += 1
                 time.sleep(1)
+                if count_429 % 10 == 0:
+                    print(f"429 Count: {count_429}, num markets: {len(markets)}")
                 continue
 
             data = response.json()

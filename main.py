@@ -1,6 +1,6 @@
 import time
 import threading
-import match_markets as matcher
+import match_markets_old as matcher
 import calculate_arbs as checker
 
 MATCH_INTERVAL  = 6 * 3600

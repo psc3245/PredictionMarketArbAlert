@@ -10,7 +10,11 @@ TOLERANCE_DAYS = 1
 NOISE_WORDS = {
     "will", "the", "a", "an", "be", "to", "in", "on", "by", "at",
     "what", "who", "which", "when", "is", "are", "was", "were",
-    "market", "prediction", "bet", "odds", "win", "winner"
+    "market", "prediction", "bet", "odds", "win", "winner", "s"
+}
+
+UNWANTED_ENT_LABELS = {
+    "DATE", "MONEY", "PERCENT", "QUANTITY", "CARDINAL"
 }
 
 NFL_TEAMS = {
@@ -340,7 +344,6 @@ class CandidatePairGenerator:
             month = MONTHS[found_month]
             raw_tokens.append(found_month)
 
-            # Extract day/year when month is found
             pattern = (
                 rf'\b{found_month}\.?,?\s*'
                 rf'(\d{{1,2}})'
@@ -360,7 +363,6 @@ class CandidatePairGenerator:
                     year = d.group(2)
 
         
-        # Support "thirty-first of August"
         if day is None:
 
             day_regex = "|".join(
@@ -385,7 +387,6 @@ class CandidatePairGenerator:
                     break
 
         
-        # Support standalone ordinal words
         if day is None:
 
             for d in sorted(DAYS.keys(), key=len, reverse=True):
@@ -396,7 +397,6 @@ class CandidatePairGenerator:
                     break
                 
         
-        # Relative dates
         if "this month" in text_lower:
             month = str(date.today().month % 12 + 1).zfill(2)
             raw_tokens.append("this month")
@@ -406,7 +406,6 @@ class CandidatePairGenerator:
             raw_tokens.append("this year")
             
 
-        # Extract years in sentence order
         for token in tokens:
             if token in YEARS:
                 year = token
@@ -414,36 +413,34 @@ class CandidatePairGenerator:
                 break
 
                 
-        # No date found
         if year is None and month is None and day is None:
             return None
 
         
-        # If month exists but day does not, assume first of month
         if day is None and month is not None:
             day = "01"
 
         
-        # If month exists but year does not, assume current year
         if month is not None and year is None:
             year = str(date.today().year)
 
         
-        # If only year exists, assume end of year
         if month is None and day is None and year is not None:
             before_or_after = "by"
             month = "12"
             day = "31"
 
         
-        # Pad single digit days
         if day is not None and len(str(day)) == 1:
             day = "0" + str(day)
 
         
-        # A standalone day is probably not a deadline
         if day is not None and month is None and year is None:
             return None
+        
+        # assume its this month? not sure how to handle this yet
+        if day is not None and month is None and year is not None:
+            month = str(date.today().month)
 
                 
         return (before_or_after, f"{month}-{day}-{year}", raw_tokens)
@@ -459,7 +456,12 @@ class CandidatePairGenerator:
         
         doc = self.NLP(stripped)
         
-        ents = [e.text for e in doc.ents if e.label_ != "DATE"]
+        ents = []
+        
+        for e in doc.ents:
+            if e.label_ not in UNWANTED_ENT_LABELS:
+                ents.append(e.text)
+
         
         return ents
 
@@ -484,8 +486,8 @@ class CandidatePairGenerator:
                 else:
                     deadline_words.update(self.normalize_text(str(token)).split())
                     
-        print(f"  candidates: {candidates}")
-        print(f"  entity_words: {entity_words}") 
+        # print(f"  candidates: {candidates}")
+        # print(f"  entity_words: {entity_words}") 
 
         for token in tokens:
             if token in DAYS:
@@ -624,16 +626,35 @@ class CandidatePairGenerator:
         pm_cands = self.get_candidates(pm_q)
         k_cands = self.get_candidates(k_q)
         
-        pm_words = {w for c in pm_cands for w in self.normalize_text(c).split()}
-        k_words = {w for c in k_cands for w in self.normalize_text(c).split()}
-        has_overlap = bool(pm_words & k_words)
+        pm_words = {
+            w
+            for c in pm_cands
+            for w in self.normalize_text(c).split()
+            if w not in NOISE_WORDS
+            and len(w) >= 2
+        }
+        k_words = {
+            w for c in k_cands 
+            for w in self.normalize_text(c).split()
+            if w not in NOISE_WORDS
+            and len(w) >= 2
+        }
+        has_overlap = pm_words.intersection(k_words)
+        enough_overlap = len(has_overlap) >= 2
+        if enough_overlap and len(has_overlap) >= 2:
+            # print(f"{pm_words} and {k_words}")
+            ws = []
+            for w in pm_words:
+                if w in k_words:
+                    ws.append(w)
+            # print(f"words: {ws}")
         
         keyword_overlap = self.keyword_pool_overlap(pm_q, k_q)
         
         pm_rest = self.get_whats_left(pm_q)
         k_rest = self.get_whats_left(k_q)
         
-        if has_overlap or keyword_overlap:
+        if enough_overlap or keyword_overlap:
             return CandidatePair(polymarket_id=pm_id, polymarket_question=pm_q, pm_deadline=(pm_b_or_a, pm_deadline), pm_cands=pm_cands, pm_rest=pm_rest,
                                 kalshi_id=k_id, kalshi_question=k_q, k_deadline=(k_b_or_a, k_deadline), k_cands=k_cands, k_rest=k_rest)
         else:
@@ -701,7 +722,7 @@ class LLM_Verifier:
             timeout=120
         )
         text = response.json()["response"].strip()
-        print(text)
+        # print(text)
         try:
             start = text.index("{")
             end = text.rindex("}") + 1
@@ -711,6 +732,270 @@ class LLM_Verifier:
             return None
 
         return data.get("match")
+    
+    def build_batch_verification_prompt(self, pairs: list[CandidatePair]) -> str:
+        ret = """You are identifying pairs of prediction markets that describe the exact same real-world resolution condition, for cross-platform arbitrage matching.
+
+    CONTEXT — already verified deterministically before this pair reached you, so do NOT re-check these:
+    - Deadlines have already been confirmed compatible (or both are open-ended with no stated deadline).
+    - If both mention specific sports teams, those teams have already been confirmed to match.
+    - Negation/antonym phrasing has already been checked — these two questions are not opposites.
+
+    YOUR ONLY JOB: identify a pair where the actual CONDITION for RESOLUTION is the SAME REAL WORLD EVENT, ONLY IF PRESENT, using real-world domain knowledge where needed (e.g. knowing which sports awards are objectively stat-based vs. subjectively voted).
+
+    Market Pairs to Evaluate:
+    """
+
+        for i, pair in enumerate(pairs):
+            pm_deadline_str = (
+                f"{pair.pm_deadline[0]} {pair.pm_deadline[1]}"
+                if pair.pm_deadline and pair.pm_deadline[1]
+                else "none stated"
+            )
+
+            k_deadline_str = (
+                f"{pair.k_deadline[0]} {pair.k_deadline[1]}"
+                if pair.k_deadline and pair.k_deadline[1]
+                else "none stated"
+            )
+
+            pm_rest_str = (
+                " ".join(pair.pm_rest)
+                if pair.pm_rest
+                else "(nothing left after extraction)"
+            )
+
+            k_rest_str = (
+                " ".join(pair.k_rest)
+                if pair.k_rest
+                else "(nothing left after extraction)"
+            )
+
+            ret += f"""
+    Pair index: {i}
+
+    Polymarket Id: "{pair.polymarket_id}"
+    Polymarket question: "{pair.polymarket_question}"
+    extracted deadline: {pm_deadline_str}
+    extracted entities: {pair.pm_cands}
+    leftover condition text: "{pm_rest_str}"
+
+    Kalshi Id: "{pair.kalshi_id}"
+    Kalshi question: "{pair.kalshi_question}"
+    extracted deadline: {k_deadline_str}
+    extracted entities: {pair.k_cands}
+    leftover condition text: "{k_rest_str}"
+
+    """
+
+        ret += """
+    The "leftover condition text" is what remains after entities and dates were stripped out — it's noisy and may include stray filler words, but it isolates the part of each question describing WHAT must happen, which is the part you're judging. Use the full original questions as ground truth if the leftover text seems incomplete or unclear.
+
+    Two markets are a MATCH only if they would resolve YES/NO identically under every realistic outcome.
+
+    Notable domain-knowledge cases:
+    - "Golden Boot" / "top goalscorer" are the same objective stat-based outcome — IS a match.
+    - "Golden Ball" / "MVP" / "Player of the Tournament" are subjectively voted — NOT interchangeable with objective stat outcomes (goals scored, leading scorer), even for the same person.
+    - "Golden Ball" / "MVP", "Michael Jordan Trophy" / "MVP" — these resolve to the same outcome. Referring to winning an award by the name of the trophy representing it IS the same as winning the award title.
+    - "Lead the tournament in X" and "score N+ X" are NEVER a match, regardless of whether N seems high enough to plausibly guarantee the lead. Leading is a relative comparison against whoever else is in the tournament; a specific numeric threshold is an absolute count. Do not reason about whether N is "probably enough" to lead — always treat these as different conditions.
+    - "Silver Boot" means second-highest scorer specifically, not "top" — do not confuse with Golden Boot/top scorer.
+    - Rate-related phrasing ("Fed cuts rates" / "FOMC lowers rates" / "rate cut") describing the same underlying decision IS a match regardless of which institution name is used.
+
+    Return ONLY valid JSON. No preamble. No markdown fences.
+
+    Return exactly one result for every pair listed above, in the same order, using its pair index:
+
+    {
+        "results": [
+            {
+                "pair_index": 0,
+                "match": true,
+                "reason": "one sentence explaining the decision"
+            }
+        ]
+    }
+
+    "match" must be a JSON boolean: true or false.
+    """
+
+        return ret
+
+
+    def llm_check_batch(self, pairs: list[CandidatePair]) -> dict[int, bool | None]:
+        """
+        Returns one entry for every input pair.
+
+        {
+            0: True,
+            1: False,
+            2: None,  # no usable verdict
+        }
+
+        None means the model did not provide a valid verdict for that pair.
+        """
+
+        # Give every pair a default None verdict.
+        # This guarantees the caller always gets the same shape.
+        verdicts = {i: None for i in range(len(pairs))}
+
+        if not pairs:
+            return verdicts
+
+        prompt = self.build_batch_verification_prompt(pairs)
+
+        try:
+            response = httpx.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": "qwen2.5:14b",
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "num_ctx": 4096
+                    },
+                },
+                timeout=120,
+            )
+
+            response.raise_for_status()
+
+            text = response.json()["response"].strip()
+
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+            print(
+                f"  [batch request failure] "
+                f"{len(pairs)} pairs affected: {e}"
+            )
+            return verdicts
+
+        # Find the first position at which a valid JSON object can be decoded.
+        #
+        # This is safer than:
+        #     text.index("{")
+        #     text.rindex("}")
+        #
+        # because it doesn't assume the first/last brace in the response
+        # belongs to the JSON object.
+        data = None
+        decoder = json.JSONDecoder()
+
+        for start in (i for i, char in enumerate(text) if char == "{"):
+            try:
+                candidate, _ = decoder.raw_decode(text[start:])
+            except json.JSONDecodeError:
+                continue
+
+            if isinstance(candidate, dict):
+                data = candidate
+                break
+
+        if data is None:
+            print(
+                f"  [batch parse failure] "
+                f"{len(pairs)} pairs affected; raw response: {text}"
+            )
+            return verdicts
+
+        results = data.get("results")
+
+        if not isinstance(results, list):
+            print(
+                f"  [batch validation failure] "
+                f"{len(pairs)} pairs expected; 'results' is not a list: {data}"
+            )
+            return verdicts
+
+        seen_indices = set()
+
+        for result in results:
+            # Validate the individual result rather than letting malformed
+            # entries cause KeyError/IndexError downstream.
+            if not isinstance(result, dict):
+                print(
+                    f"  [invalid batch result] expected dict, "
+                    f"got {type(result).__name__}: {result}"
+                )
+                continue
+
+            pair_index = result.get("pair_index")
+            match = result.get("match")
+            reason = result.get("reason")
+
+            if not isinstance(pair_index, int) or isinstance(pair_index, bool):
+                print(
+                    f"  [invalid batch result] invalid pair_index: "
+                    f"{pair_index!r}"
+                )
+                continue
+
+            if pair_index not in verdicts:
+                print(
+                    f"  [invalid batch result] pair_index {pair_index} "
+                    f"is outside batch range 0-{len(pairs) - 1}"
+                )
+                continue
+
+            if pair_index in seen_indices:
+                print(
+                    f"  [duplicate batch result] "
+                    f"pair_index {pair_index}"
+                )
+                continue
+
+            if not isinstance(match, bool):
+                print(
+                    f"  [invalid batch result] pair_index {pair_index} "
+                    f"has non-boolean match: {match!r}"
+                )
+                continue
+
+            if not isinstance(reason, str):
+                print(
+                    f"  [invalid batch result] pair_index {pair_index} "
+                    f"has invalid reason: {reason!r}"
+                )
+                continue
+
+            seen_indices.add(pair_index)
+            verdicts[pair_index] = match
+
+        missing = set(verdicts) - seen_indices
+
+        if missing:
+            print(
+                f"  [incomplete batch response] "
+                f"received {len(seen_indices)}/{len(pairs)} valid verdicts; "
+                f"missing indices: {sorted(missing)}"
+            )
+
+        return verdicts
+    
+    def check_pairs_in_batches(
+    self,
+    pairs: list[CandidatePair],
+    batch_size: int = 5,
+) -> dict[int, bool | None]:
+        """
+        Evaluate all candidate pairs in batches.
+
+        The indices in the returned dictionary refer to the original
+        `pairs` list, not the individual batches.
+
+        None means the LLM failed to provide a usable verdict.
+        """
+
+        verdicts = {i: None for i in range(len(pairs))}
+
+        for start in range(0, len(pairs), batch_size):
+            batch = pairs[start:start + batch_size]
+
+            batch_verdicts = self.llm_check_batch(batch)
+
+            for batch_index, verdict in batch_verdicts.items():
+                original_index = start + batch_index
+                verdicts[original_index] = verdict
+
+        return verdicts
     
     def build_unmatched_verification_prompt(self, k_q, pm_q):
         return f"""You are verifying whether two prediction market questions describe the exact same real-world resolution condition, for cross-platform arbitrage matching.
@@ -743,7 +1028,7 @@ class LLM_Verifier:
             timeout=120
         )
         text = response.json()["response"].strip()
-        print(text)
+        # print(text)
         try:
             start = text.index("{")
             end = text.rindex("}") + 1
