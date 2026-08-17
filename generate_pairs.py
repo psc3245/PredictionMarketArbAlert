@@ -3,7 +3,7 @@ from util.market_processor import MarketPreprocessor, LookupTable
 import fetch_markets as f
 
 
-def match(target=1000):
+def match(target=1500):
     pair_generator = CandidatePairGenerator()
     llm_verifier = LLM_Verifier()
     preprocessor = MarketPreprocessor()
@@ -308,4 +308,3 @@ def match_batch(target=1000):
         its += 1
         
     return confirmed_kalshi_matches, confirmed_pm_matches
-        
