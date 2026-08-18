@@ -1,55 +1,94 @@
+from market_collection.kalshi_client import KalshiClient
+import asyncio
 import time
-import threading
-import match_markets_old as matcher
-import calculate_arbs as checker
 
-MATCH_INTERVAL  = 6 * 3600
-POLL_INTERVAL   = 60
-MATCH_TARGET    = 10
 
-_matching_lock = threading.Lock()
-_is_matching   = False
+async def main():
+    kalshi_client = KalshiClient()
 
-def run_matcher():
-    global _is_matching
-    with _matching_lock:
-        if _is_matching:
-            return
-        _is_matching = True
-    try:
-        matcher.match()
-    finally:
-        with _matching_lock:
-            _is_matching = False
+    results = []
+    sleep = 10.0
 
-def matcher_loop():
-    while True:
-        run_matcher()
-        print(f"[matcher] Sleeping {MATCH_INTERVAL//3600}h until next run")
-        time.sleep(MATCH_INTERVAL)
+    for _ in range(7):
+        print("-" * 60)
+        print(f"Testing sleep time: {sleep:.4f}s")
 
-def arb_loop():
-    while True:
-        confirmed = matcher.load_confirmed_matches()
-        if not confirmed:
-            print("[arb] No confirmed matches yet, waiting...")
-            time.sleep(POLL_INTERVAL)
-            continue
+        start = time.perf_counter()
+        markets, count, elapsed = await kalshi_client.list_all_markets(sleep)
 
-        print(f"[arb] Checking {len(confirmed)} pairs...")
-        alerts = checker.run_once(confirmed)
-        if alerts:
-            for alert in alerts:
-                checker.print_alert(alert)
-        else:
-            print(f"[arb] No arb found.")
+        markets_found = len(markets)
+        markets_per_sec = markets_found / elapsed if elapsed > 0 else 0
 
-        time.sleep(POLL_INTERVAL)
+        results.append({
+            "sleep": sleep,
+            "markets": markets_found,
+            "429s": count,
+            "time": elapsed,
+            "markets/sec": markets_per_sec,
+        })
+
+        print(f"Markets found : {markets_found:,}")
+        print(f"429s          : {count:,}")
+        print(f"Time elapsed  : {elapsed:.2f}s")
+        print(f"Markets/sec   : {markets_per_sec:.2f}")
+
+        sleep /= 2
+
+    # Sort by sleep time for display
+    results.sort(key=lambda x: x["sleep"], reverse=True)
+
+    print("\n" + "=" * 80)
+    print("RESULTS")
+    print("=" * 80)
+
+    print(
+        f"{'Sleep':>10} "
+        f"{'Markets':>10} "
+        f"{'429s':>8} "
+        f"{'Time (s)':>12} "
+        f"{'Markets/s':>12}"
+    )
+    print("-" * 80)
+
+    for result in results:
+        print(
+            f"{result['sleep']:>10.4f} "
+            f"{result['markets']:>10,} "
+            f"{result['429s']:>8,} "
+            f"{result['time']:>12.2f} "
+            f"{result['markets/sec']:>12.2f}"
+        )
+
+    # Best individual runs
+    most_markets = max(results, key=lambda x: x["markets"])
+    fewest_429s = min(results, key=lambda x: x["429s"])
+    fastest = min(results, key=lambda x: x["time"])
+    best_throughput = max(results, key=lambda x: x["markets/sec"])
+
+    print("\n" + "=" * 80)
+    print("BEST RESULTS")
+    print("=" * 80)
+
+    print(
+        f"Most markets     : {most_markets['sleep']:.4f}s "
+        f"({most_markets['markets']:,} markets)"
+    )
+
+    print(
+        f"Fewest 429s      : {fewest_429s['sleep']:.4f}s "
+        f"({fewest_429s['429s']:,} 429s)"
+    )
+
+    print(
+        f"Fastest           : {fastest['sleep']:.4f}s "
+        f"({fastest['time']:.2f}s)"
+    )
+
+    print(
+        f"Best throughput   : {best_throughput['sleep']:.4f}s "
+        f"({best_throughput['markets/sec']:.2f} markets/s)"
+    )
+
 
 if __name__ == "__main__":
-    match_thread = threading.Thread(target=matcher_loop, daemon=True)
-    match_thread.start()
-    
-    time.sleep(5)
-
-    arb_loop()
+    asyncio.run(main())
