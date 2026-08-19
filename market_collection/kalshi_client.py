@@ -31,7 +31,7 @@ class KalshiClient(MarketClient):
 
             if response.status_code == 429:
                 count_429 += 1
-                asyncio.sleep(sleep)
+                await asyncio.sleep(sleep)
                 continue
 
             data = response.json()

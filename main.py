@@ -7,7 +7,7 @@ async def main():
     kalshi_client = KalshiClient()
 
     results = []
-    sleep = 10.0
+    sleep = 0.3125
 
     for _ in range(7):
         print("-" * 60)
@@ -32,7 +32,7 @@ async def main():
         print(f"Time elapsed  : {elapsed:.2f}s")
         print(f"Markets/sec   : {markets_per_sec:.2f}")
 
-        sleep /= 2
+        # sleep /= 2
 
     # Sort by sleep time for display
     results.sort(key=lambda x: x["sleep"], reverse=True)
