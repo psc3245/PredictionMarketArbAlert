@@ -1,93 +1,136 @@
-from market_collection.kalshi_client import KalshiClient
+from generate_pairs import match, match_batch
 import asyncio
 import time
 
 
 async def main():
-    kalshi_client = KalshiClient()
-
-    results = []
-    sleep = 0.3125
-
-    for _ in range(7):
-        print("-" * 60)
-        print(f"Testing sleep time: {sleep:.4f}s")
-
-        start = time.perf_counter()
-        markets, count, elapsed = await kalshi_client.list_all_markets(sleep)
-
-        markets_found = len(markets)
-        markets_per_sec = markets_found / elapsed if elapsed > 0 else 0
-
-        results.append({
-            "sleep": sleep,
-            "markets": markets_found,
-            "429s": count,
-            "time": elapsed,
-            "markets/sec": markets_per_sec,
-        })
-
-        print(f"Markets found : {markets_found:,}")
-        print(f"429s          : {count:,}")
-        print(f"Time elapsed  : {elapsed:.2f}s")
-        print(f"Markets/sec   : {markets_per_sec:.2f}")
-
-        # sleep /= 2
-
-    # Sort by sleep time for display
-    results.sort(key=lambda x: x["sleep"], reverse=True)
-
-    print("\n" + "=" * 80)
-    print("RESULTS")
+    # ---------------------------------------------------------
+    # Run original match()
+    # ---------------------------------------------------------
+    print("=" * 80)
+    print("RUNNING match()")
     print("=" * 80)
 
-    print(
-        f"{'Sleep':>10} "
-        f"{'Markets':>10} "
-        f"{'429s':>8} "
-        f"{'Time (s)':>12} "
-        f"{'Markets/s':>12}"
-    )
+    start = time.perf_counter()
+
+    kalshi_matches, pm_matches = await match()
+
+    match_time = time.perf_counter() - start
+
+    print("\n" + "-" * 80)
+    print("match() RESULTS")
     print("-" * 80)
 
-    for result in results:
-        print(
-            f"{result['sleep']:>10.4f} "
-            f"{result['markets']:>10,} "
-            f"{result['429s']:>8,} "
-            f"{result['time']:>12.2f} "
-            f"{result['markets/sec']:>12.2f}"
-        )
+    print(f"Kalshi matches : {len(kalshi_matches):,}")
+    print(f"PM matches     : {len(pm_matches):,}")
+    print(f"Total matches  : {len(kalshi_matches) + len(pm_matches):,}")
+    print(f"Time           : {match_time:.2f}s")
 
-    # Best individual runs
-    most_markets = max(results, key=lambda x: x["markets"])
-    fewest_429s = min(results, key=lambda x: x["429s"])
-    fastest = min(results, key=lambda x: x["time"])
-    best_throughput = max(results, key=lambda x: x["markets/sec"])
-
+    # ---------------------------------------------------------
+    # Run match_batch()
+    # ---------------------------------------------------------
     print("\n" + "=" * 80)
-    print("BEST RESULTS")
+    print("RUNNING match_batch()")
     print("=" * 80)
 
+    start = time.perf_counter()
+
+    kalshi_batch_matches, pm_batch_matches = await match_batch()
+
+    batch_time = time.perf_counter() - start
+
+    print("\n" + "-" * 80)
+    print("match_batch() RESULTS")
+    print("-" * 80)
+
+    print(f"Kalshi matches : {len(kalshi_batch_matches):,}")
+    print(f"PM matches     : {len(pm_batch_matches):,}")
     print(
-        f"Most markets     : {most_markets['sleep']:.4f}s "
-        f"({most_markets['markets']:,} markets)"
+        f"Total matches  : "
+        f"{len(kalshi_batch_matches) + len(pm_batch_matches):,}"
+    )
+    print(f"Time           : {batch_time:.2f}s")
+
+    # ---------------------------------------------------------
+    # Compare
+    # ---------------------------------------------------------
+    print("\n" + "=" * 80)
+    print("COMPARISON")
+    print("=" * 80)
+
+    normal_total = len(kalshi_matches) + len(pm_matches)
+    batch_total = len(kalshi_batch_matches) + len(pm_batch_matches)
+
+    print(f"{'':25} {'match()':>15} {'match_batch()':>15}")
+    print("-" * 60)
+
+    print(
+        f"{'Kalshi matches':25} "
+        f"{len(kalshi_matches):>15,} "
+        f"{len(kalshi_batch_matches):>15,}"
     )
 
     print(
-        f"Fewest 429s      : {fewest_429s['sleep']:.4f}s "
-        f"({fewest_429s['429s']:,} 429s)"
+        f"{'PM matches':25} "
+        f"{len(pm_matches):>15,} "
+        f"{len(pm_batch_matches):>15,}"
     )
 
     print(
-        f"Fastest           : {fastest['sleep']:.4f}s "
-        f"({fastest['time']:.2f}s)"
+        f"{'Total matches':25} "
+        f"{normal_total:>15,} "
+        f"{batch_total:>15,}"
     )
 
     print(
-        f"Best throughput   : {best_throughput['sleep']:.4f}s "
-        f"({best_throughput['markets/sec']:.2f} markets/s)"
+        f"{'Runtime (seconds)':25} "
+        f"{match_time:>15.2f} "
+        f"{batch_time:>15.2f}"
     )
+
+    if batch_time > 0:
+        print(
+            f"{'Speedup':25} "
+            f"{'':>15} "
+            f"{match_time / batch_time:>14.2f}x"
+        )
+
+    # ---------------------------------------------------------
+    # Compare actual pair IDs
+    # ---------------------------------------------------------
+    normal_pairs = {
+        (p.kalshi_id, p.polymarket_id)
+        for p in kalshi_matches + pm_matches
+    }
+
+    batch_pairs = {
+        (p.kalshi_id, p.polymarket_id)
+        for p in kalshi_batch_matches + pm_batch_matches
+    }
+
+    print("\n" + "=" * 80)
+    print("PAIR DIFFERENCES")
+    print("=" * 80)
+
+    only_normal = normal_pairs - batch_pairs
+    only_batch = batch_pairs - normal_pairs
+    both = normal_pairs & batch_pairs
+
+    print(f"Pairs in both      : {len(both):,}")
+    print(f"Only match()       : {len(only_normal):,}")
+    print(f"Only match_batch() : {len(only_batch):,}")
+
+    if only_normal:
+        print("\nExamples only found by match():")
+
+        for kalshi_id, pm_id in list(only_normal)[:10]:
+            print(f"  {kalshi_id} <-> {pm_id}")
+
+    if only_batch:
+        print("\nExamples only found by match_batch():")
+
+        for kalshi_id, pm_id in list(only_batch)[:10]:
+            print(f"  {kalshi_id} <-> {pm_id}")
 
 
 if __name__ == "__main__":

@@ -1,15 +1,21 @@
 from util.match_markets import CandidatePairGenerator, LLM_Verifier
 from util.market_processor import MarketPreprocessor, LookupTable
-import fetch_markets as f
+from market_collection.kalshi_client import KalshiClient
+from market_collection.pm_client import PMClient
 
 
-def match(target=1500):
-    pair_generator = CandidatePairGenerator()
-    llm_verifier = LLM_Verifier()
+async def match(target=1500):
+    kalshi_client = KalshiClient()
+    pm_client = PMClient()
+    
     preprocessor = MarketPreprocessor()
     lookup_table = LookupTable()
+    
+    pair_generator = CandidatePairGenerator()
+    llm_verifier = LLM_Verifier()
 
-    kalshi, pm = f.find_markets(target=target)
+    kalshi = await kalshi_client.list_all_markets()
+    pm = await pm_client.list_all_markets()
 
     kalshi_matched_ids = set()
     pm_matched_ids = set()
@@ -92,13 +98,18 @@ def match(target=1500):
             
     return confirmed_kalshi_matches, confirmed_pm_matches
 
-def match_batch(target=1000):
-    pair_generator = CandidatePairGenerator()
-    llm_verifier = LLM_Verifier()
+async def match_batch(target=1000):
+    kalshi_client = KalshiClient()
+    pm_client = PMClient()
+    
     preprocessor = MarketPreprocessor()
     lookup_table = LookupTable()
+    
+    pair_generator = CandidatePairGenerator()
+    llm_verifier = LLM_Verifier()
 
-    kalshi, pm = f.find_markets(target=target)
+    kalshi = await kalshi_client.list_all_markets()
+    pm = await pm_client.list_all_markets()
 
     kalshi_matched_ids = set()
     pm_matched_ids = set()

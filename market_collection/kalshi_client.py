@@ -16,7 +16,7 @@ class KalshiClient(MarketClient):
         self.http_client = httpx.Client(timeout=10)
         self.async_client = httpx.AsyncClient(timeout=10)
     
-    async def list_all_markets(self, sleep):
+    async def list_all_markets(self):
         markets = []
         cursor = None
         begin = int(time.time())
@@ -31,7 +31,7 @@ class KalshiClient(MarketClient):
 
             if response.status_code == 429:
                 count_429 += 1
-                await asyncio.sleep(sleep)
+                await asyncio.sleep(1.25)
                 continue
 
             data = response.json()
@@ -46,7 +46,7 @@ class KalshiClient(MarketClient):
                 break
     
                 
-        return markets, count_429, float(time.time()) - begin
+        return markets # , count_429, float(time.time()) - begin
     
     async def market_by_id(self, market_id: str):
         pass
