@@ -51,9 +51,6 @@ class PMClient(MarketClient):
             if not next_cursor:
                 break
             
-            if len(markets) % 100 == 0:
-                print(f"{len(markets)} markets, {count_429} 429s, time elapsed: {float(time.time()) - begin}")
-
         return markets # , count_429, float(time.time()) - begin
             
     
