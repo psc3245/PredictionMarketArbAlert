@@ -15,14 +15,17 @@ class PMClient(MarketClient):
     async def get_order_book(self):
         pass
     
-    async def list_all_markets(self, target=100):
+    async def list_all_markets(self):
         markets = []
         next_cursor = None
         begin = int(time.time())
         count_429 = 0
+        seen_cursors = set()
+        page = 0
 
-        while True:
-            url = f"{PM_URL}?limit=100"
+        while len(markets) < 5000:
+            page += 1
+            url = f"{PM_URL}?limit=100&closed=false"
 
             if next_cursor:
                 url += f"&after_cursor={next_cursor}"
@@ -30,27 +33,43 @@ class PMClient(MarketClient):
             response = await self.async_client.get(url)
 
             if response.status_code == 429:
-                print("429!")
+                print(f"[pm_client] 429 rate limited (count={count_429 + 1}), sleeping")
                 count_429 += 1
                 await asyncio.sleep(1)
                 continue
 
             data = response.json()
-            pretty_json = json.dumps(data, indent=4, sort_keys=True)
-            # print(pretty_json)
+            raw_count = len(data.get("markets", []))
+            kept_before = len(markets)
 
             for m in data.get("markets", []):
-
-                markets.append(m)
-
-                if len(markets) >= target:
-                    break
+                new = self.pm_clob_to_market(m)
+                if new:
+                    markets.append(new)
 
             next_cursor = data.get("next_cursor")
 
+            # print(
+            #     f"[pm_client] page {page} | raw={raw_count} "
+            #     f"kept={len(markets) - kept_before} cumulative={len(markets)} "
+            #     f"next_cursor={next_cursor!r}"
+            # )
+
+            if next_cursor and next_cursor in seen_cursors:
+                print(
+                    f"[pm_client] WARNING: cursor {next_cursor!r} seen before "
+                    f"on page {page} - pagination may be stuck in a loop"
+                )
+            seen_cursors.add(next_cursor)
+
             if not next_cursor:
                 break
-            
+
+        print(
+            f"[pm_client] done: {len(markets)} markets kept across "
+            f"{page} pages in {int(time.time()) - begin}s (429s={count_429})"
+        )
+
         return markets # , count_429, float(time.time()) - begin
             
     
@@ -66,16 +85,20 @@ class PMClient(MarketClient):
     def pm_clob_to_market(self, clob_market):
         id = clob_market.get('id')
         question = clob_market.get('question')
-        yes_ask = float(clob_market.get('bestAsk'))
-        yes_bid = float(clob_market.get('bestBid'))
-        volume_24h = clob_market.get('volume')
-        liquidity = float(clob_market.get('liquidity'))
+        yes_ask = float(clob_market.get('bestAsk') or 0)
+        yes_bid = float(clob_market.get('bestBid') or 0)
+        volume_24h = clob_market.get('volume24hr')
+        if volume_24h is None or float(volume_24h) < 10: 
+            return None
+        liquidity = float(clob_market.get('liquidity') or 0)
+        if liquidity <= 500:
+            return None
         url = None
         close_time = clob_market.get('endDate')
         
         
-        title = clob_market.get('title', '')
-        sub_title = clob_market.get('yes_sub_title', '')
+        title = clob_market.get('question', '')
+        sub_title = clob_market.get('groupItemTitle', '')
 
         if sub_title and sub_title.lower() not in title.lower():
             match_key = f"{title} - {sub_title}"
@@ -83,10 +106,10 @@ class PMClient(MarketClient):
             match_key = title
             
         return Market(
-            platform='polymarket',
+            platform="polymarket",
             market_id=id,
             question=question,
-            match_key=question,
+            match_key=match_key,
             yes_ask=yes_ask,
             yes_bid=yes_bid,
             volume_24h=volume_24h,

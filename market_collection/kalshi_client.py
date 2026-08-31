@@ -7,9 +7,8 @@ import time
 
 today = int(time.time())
 one_twenty_days = today + (120 * 24 * 60 * 60)
-KALSHI_API_URL = f"https://external-api.kalshi.com/trade-api/v2/markets?status=open&min_close_ts={today}&max_close_ts={one_twenty_days}"
+KALSHI_API_URL = f"https://external-api.kalshi.com/trade-api/v2/markets?status=open&mve_filter=exclude&min_close_ts={today}&max_close_ts={one_twenty_days}"
 VOLUME_THRESHOLD = 1
-SLEEP_TIMER = 2.5
 
 class KalshiClient(MarketClient):
     def __init__(self):
@@ -21,31 +20,59 @@ class KalshiClient(MarketClient):
         cursor = None
         begin = int(time.time())
         count_429 = 0
-    
+        seen_cursors = set()
+        page = 0
+
         while True:
+            page += 1
             url = f"{KALSHI_API_URL}&limit=1000"
             if cursor:
                 url += f"&cursor={cursor}"
-
-            response = await self.async_client.get(url)
+            try:
+                response = await self.async_client.get(url)
+            except httpx.ReadTimeout:
+                print("[kalshi_client] read timeout, retyring")
+                await asyncio.sleep(1.25)
+                continue
 
             if response.status_code == 429:
                 count_429 += 1
+                print(f"[kalshi_client] 429 rate limited (count={count_429}), sleeping")
                 await asyncio.sleep(1.25)
                 continue
 
             data = response.json()
+            raw_count = len(data.get('markets', []))
+            kept_before = len(markets)
 
             for m in data['markets']:
                 parsed = self.kalshi_to_market(m)
                 if parsed:
                     markets.append(parsed)
-                    
+
             cursor = data.get('cursor')
+
+            # print(
+            #     f"[kalshi_client] page {page} | raw={raw_count} "
+            #     f"kept={len(markets) - kept_before} cumulative={len(markets)} "
+            #     f"next_cursor={cursor!r}"
+            # )
+
+            if cursor and cursor in seen_cursors:
+                print(
+                    f"[kalshi_client] WARNING: cursor {cursor!r} seen before "
+                    f"on page {page} - pagination may be stuck in a loop"
+                )
+            seen_cursors.add(cursor)
+
             if not cursor:
                 break
-    
-                
+
+        print(
+            f"[kalshi_client] done: {len(markets)} markets kept across "
+            f"{page} pages in {int(time.time()) - begin}s (429s={count_429})"
+        )
+
         return markets # , count_429, float(time.time()) - begin
     
     async def market_by_id(self, market_id: str):

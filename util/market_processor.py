@@ -4,239 +4,8 @@ import re
 from datetime import date
 import spacy
 from collections import defaultdict
+import util.constants as constants
 
-# -----------------------------------------
-#      CONSTANTS                          |
-# -----------------------------------------
-
-MONTHS = {
-    'jan': '01', 'january': '01', 'feb': '02', 'february': '02',
-    'mar': '03', 'march': '03', 'apr': '04', 'april': '04',
-    'may': '05', 'jun': '06', 'june': '06', 'jul': '07', 'july': '07',
-    'aug': '08', 'august': '08', 'sep': '09', 'september': '09',
-    'oct': '10', 'october': '10', 'nov': '11', 'november': '11',
-    'dec': '12', 'december': '12'
-}
-
-DAYS = {
-    "first": 1,
-    "second": 2,
-    "third": 3,
-    "fourth": 4,
-    "fifth": 5,
-    "sixth": 6,
-    "seventh": 7,
-    "eighth": 8,
-    "ninth": 9,
-    "tenth": 10,
-    "eleventh": 11,
-    "twelfth": 12,
-    "thirteenth": 13,
-    "fourteenth": 14,
-    "fifteenth": 15,
-    "sixteenth": 16,
-    "seventeenth": 17,
-    "eighteenth": 18,
-    "nineteenth": 19,
-    "twentieth": 20,
-    "twenty-first": 21,    "twenty first": 21,
-    "twenty-second": 22,    "twenty second": 22,
-    "twenty-third": 23,    "twenty third": 23,
-    "twenty-fourth": 24,    "twenty fourth": 24,
-    "twenty-fifth": 25,    "twenty fifth": 25,
-    "twenty-sixth": 26,    "twenty sixth": 26,
-    "twenty-seventh": 27,    "twenty seventh": 27,
-    "twenty-eighth": 28,    "twenty eighth": 28,
-    "twenty-ninth": 29, "twenty ninth": 29, 
-    "thirtieth": 30,
-    "thirty-first": 31, "thirty first": 31,
-}
-
-YEARS = [
-    "2026",
-    "2027",
-    "2028"
-]
-
-NOISE_WORDS = {
-    "will", "the", "a", "an", "be", "to", "in", "on", "by", "at",
-    "what", "who", "which", "when", "is", "are", "was", "were",
-    "market", "prediction", "bet", "odds", "win", "winner", "s"
-}
-
-UNWANTED_ENT_LABELS = {
-    "DATE", "MONEY", "PERCENT", "QUANTITY", "CARDINAL"
-}
-
-KEYWORD_GROUPS = [
-    # --- Award/title names (NER mis-tags these as FAC/ORG/nothing - confirmed) ---
-    {"golden ball", "golden boot", "silver ball", "silver boot",
-     "bronze ball", "bronze boot", "golden glove", "best player",
-     "player of the tournament", "top goalscorer", "top scorer",
-     "leading scorer", "mvp", "most valuable player"},
-    {"heisman", "heisman trophy"},
-    {"nobel prize", "nobel peace prize", "nobel prize winner"},
-    {"oscar", "academy award", "academy awards"},
-    {"grammy", "grammy award", "grammy awards"},
-    {"mvp award"},  # sports league regular-season/finals MVP, distinct from tournament MVP above
-
-    # --- Recurring event types (structural, not tied to any one edition/year) ---
-    {"world cup", "fifa world cup"},
-    {"super bowl", "superbowl"},
-    {"olympics", "olympic games", "summer olympics", "winter olympics"},
-    {"champions league", "uefa champions league"},
-    {"europa league", "uefa europa league"},
-    {"nba finals"},
-    {"stanley cup", "stanley cup finals"},
-    {"world series", "mlb world series"},
-    {"ncaa tournament", "march madness"},
-    {"us open"},
-    {"wimbledon"},
-    {"french open", "roland garros"},
-    {"australian open"},
-
-    # --- US monetary policy / economic indicators ---
-    {"fed", "fomc", "federal reserve", "fed rate", "federal funds rate",
-     "interest rate decision", "interest rate", "rate cut", "rate hike",
-     "rate cuts", "rate hikes"},
-    {"nonfarm payroll", "nonfarm payrolls", "jobs report", "jobs added",
-     "jobs created", "unemployment rate", "unemployment"},
-    {"cpi", "inflation report", "consumer price index", "inflation rate"},
-    {"ppi", "producer price index"},
-    {"gdp report", "gdp growth", "gross domestic product"},
-    {"retail sales"},
-    {"consumer confidence"},
-    {"jobless claims", "initial jobless claims"},
-    {"housing starts", "housing start"},
-    {"existing home sales", "new home sales"},
-    {"ism", "ism manufacturing", "ism services"},
-    {"recession", "economic recession"},
-
-    # --- Elections / US government ---
-    {"election", "presidential election", "general election"},
-    {"primary election", "presidential primary"},
-    {"midterm election", "midterms"},
-    {"electoral college", "electoral votes"},
-    {"impeachment", "impeach"},
-    {"government shutdown", "shutdown"},
-    {"debt ceiling", "debt limit"},
-    {"government funding", "federal funding"},
-    {"supreme court", "supreme court ruling"},
-    {"executive order", "executive orders"},
-
-    # --- Financial markets / corporate events ---
-    {"ipo", "initial public offering"},
-    {"stock split", "stock split announcement"},
-    {"earnings report", "earnings call", "quarterly earnings",
-     "earnings results"},
-    {"merger", "acquisition", "merger and acquisition", "m&a"},
-    {"bankruptcy", "bankruptcy filing"},
-    {"dividend", "dividend payment"},
-    {"buyback", "stock buyback", "share buyback"},
-
-    # --- Crypto / financial assets ---
-    {"bitcoin", "btc"},
-    {"ethereum", "eth"},
-    {"solana", "sol"},
-    {"xrp", "ripple"},
-    {"dogecoin", "doge"},
-    {"nasdaq", "nasdaq composite"},
-    {"s&p 500", "s&p500", "sp500"},
-    {"dow jones", "dow", "djia"},
-    {"russell 2000"},
-    {"nvidia", "nvda"},
-    {"tesla", "tsla"},
-    {"apple", "aapl"},
-    {"microsoft", "msft"},
-    {"amazon", "amzn"},
-    {"alphabet", "google", "googl", "goog"},
-    {"meta", "meta platforms"},
-    {"openai"},
-
-    # --- International conflict / diplomacy ---
-    {"ceasefire", "cease-fire", "peace deal", "peace agreement"},
-    {"nuclear deal", "nuclear agreement", "nuclear talks"},
-    {"sanctions", "economic sanctions"},
-    {"nato", "north atlantic treaty organization"},
-    {"united nations", "un", "un security council"},
-    {"tariff", "tariffs", "trade tariff", "trade war"},
-    {"peace talks", "peace negotiations"},
-    {"military aid", "foreign aid"},
-    {"invasion"},
-    {"airstrike", "air strikes", "airstrikes"},
-
-    # --- Hyphenated / cross-entity geopolitical phrasing (confirmed NER blind spot) ---
-    {"us-iran", "u.s.-iran", "us and iran"},
-    {"us-china", "u.s.-china", "us and china"},
-    {"us-russia", "u.s.-russia", "us and russia"},
-    {"us-israel", "u.s.-israel", "us and israel"},
-    {"israel-hamas", "israel and hamas"},
-    {"russia-ukraine", "russia and ukraine"},
-    {"china-taiwan", "china and taiwan"},
-    {"north korea-south korea", "north korea and south korea"},
-    {"israel-iran", "israel and iran"},
-
-    # --- Product/version jargon (NER has no PRODUCT category reliability here) ---
-    {"gpt-6", "gpt6", "gpt 6"},
-    {"gpt-5", "gpt5", "gpt 5"},
-    {"claude", "mythos", "opus", "sonnet"},
-    {"gemini"},
-    {"llama"},
-    {"gta vi", "gta6", "gta 6"},
-    {"starship"},
-
-    # --- Technology / AI releases ---
-    {"artificial intelligence", "artificial intelligence model", "ai model"},
-    {"large language model", "large language models", "llm", "llms"},
-    {"chatgpt"},
-    {"openai model", "openai models"},
-    {"anthropic model", "anthropic models"},
-    {"google ai", "google deepmind"},
-    {"ai agent", "ai agents"},
-    {"robotaxi", "robotaxis"},
-    {"self-driving", "self driving", "autonomous driving"},
-
-    # --- Major sports statistics / outcomes ---
-    {"touchdown", "touchdowns"},
-    {"home run", "home runs"},
-    {"passing yards", "rushing yards", "receiving yards"},
-    {"points per game", "ppg"},
-    {"goals scored", "goals"},
-    {"assists"},
-    {"rebounds"},
-    {"strikeouts", "strikeout"},
-    {"wins", "win total"},
-    {"regular season", "regular-season"},
-    {"playoffs", "playoff"},
-    {"championship", "championship game"},
-
-    # --- Major entertainment releases / awards ---
-    {"box office", "domestic box office", "worldwide box office"},
-    {"opening weekend", "opening weekend box office"},
-    {"streaming", "streaming release"},
-    {"emmy", "emmy award", "emmy awards"},
-    {"tony award", "tony awards"},
-    {"bafta", "bafta awards"},
-    {"golden globe", "golden globes"},
-
-    # --- Weather / natural events ---
-    {"hurricane", "tropical storm"},
-    {"tornado", "tornadoes"},
-    {"earthquake", "earthquakes"},
-    {"wildfire", "wildfires"},
-    {"landfall"},
-    {"category 5", "category five"},
-
-    # --- Space / launches ---
-    {"spacex", "space x"},
-    {"falcon 9", "falcon nine"},
-    {"starship", "spacex starship"},
-    {"rocket launch", "rocket launches"},
-    {"moon landing", "lunar landing"},
-    {"mars mission", "mars mission"},
-]
-
-MIN_ENTITY_LENGTH = 3
 
 class MarketType(Enum):
     KALSHI = 1
@@ -339,7 +108,7 @@ class MarketPreprocessor:
         found_month = None
         first_pos = len(text_lower)
 
-        for month_name in sorted(MONTHS.keys(), key=len, reverse=True):
+        for month_name in sorted(constants.MONTHS.keys(), key=len, reverse=True):
             match = re.search(rf"\b{re.escape(month_name)}\b", text_lower)
 
             if match and match.start() < first_pos:
@@ -347,7 +116,7 @@ class MarketPreprocessor:
                 found_month = month_name
 
         if found_month:
-            month = MONTHS[found_month]
+            month = constants.MONTHS[found_month]
             raw_tokens.append(found_month)
 
             pattern = (
@@ -370,13 +139,13 @@ class MarketPreprocessor:
         if day is None:
             day_regex = "|".join(
                 sorted(
-                    [re.escape(d).replace(r"\-", "[- ]") for d in DAYS.keys()],
+                    [re.escape(d).replace(r"\-", "[- ]") for d in constants.DAYS.keys()],
                     key=len,
                     reverse=True
                 )
             )
 
-            for month_name in sorted(MONTHS.keys(), key=len, reverse=True):
+            for month_name in sorted(constants.MONTHS.keys(), key=len, reverse=True):
                 pattern = (
                     rf'\b({day_regex})\s+of\s+'
                     rf'{re.escape(month_name)}\b'
@@ -385,10 +154,10 @@ class MarketPreprocessor:
                 m = re.search(pattern, text_lower)
 
                 if m:
-                    month = MONTHS[month_name]
+                    month = constants.MONTHS[month_name]
                     raw_tokens.append(month_name)
 
-                    day = DAYS[m.group(1)]
+                    day = constants.DAYS[m.group(1)]
 
                     if isinstance(day, int):
                         day = str(day).zfill(2)
@@ -398,9 +167,9 @@ class MarketPreprocessor:
 
         # Handle standalone ordinal words such as "twenty-first".
         if day is None:
-            for d in sorted(DAYS.keys(), key=len, reverse=True):
+            for d in sorted(constants.DAYS.keys(), key=len, reverse=True):
                 if d in tokens:
-                    day = str(DAYS[d]).zfill(2)
+                    day = str(constants.DAYS[d]).zfill(2)
                     raw_tokens.append(d)
                     break
 
@@ -413,7 +182,7 @@ class MarketPreprocessor:
             raw_tokens.append("this year")
 
         for token in tokens:
-            if token in YEARS:
+            if token in constants.YEARS:
                 year = token
                 raw_tokens.append(token)
                 break
@@ -469,10 +238,10 @@ class MarketPreprocessor:
         ents = []
 
         for e in doc.ents:
-            if e.label_ in UNWANTED_ENT_LABELS:
+            if e.label_ in constants.UNWANTED_ENT_LABELS:
                 continue
             candidate = e.text.strip()
-            if len(self.normalize_text(candidate).strip()) < MIN_ENTITY_LENGTH:
+            if len(self.normalize_text(candidate).strip()) < constants.MIN_ENTITY_LENGTH:
                 continue
             ents.append(candidate)
 
@@ -507,16 +276,16 @@ class MarketPreprocessor:
                     )
 
         for token in tokens:
-            if token in DAYS:
+            if token in constants.DAYS:
                 continue
 
             if token in {"before", "after", "by"}:
                 continue
 
-            if token in YEARS:
+            if token in constants.YEARS:
                 continue
 
-            if token in MONTHS:
+            if token in constants.MONTHS:
                 continue
 
             if token in entity_words:
@@ -525,7 +294,7 @@ class MarketPreprocessor:
             if token in deadline_words:
                 continue
             
-            if token in NOISE_WORDS:
+            if token in constants.NOISE_WORDS:
                 continue
 
             filtered.append(token)
@@ -551,7 +320,7 @@ class MarketPreprocessor:
     def get_keyword_group_ids(self, question: str) -> set[int]:
         group_ids = set()
 
-        for i, group in enumerate(KEYWORD_GROUPS):
+        for i, group in enumerate(constants.KEYWORD_GROUPS):
             if self.question_matches_keyword_group(question, group):
                 group_ids.add(i)
 
