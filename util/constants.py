@@ -1,6 +1,6 @@
 TOLERANCE_DAYS = 1
 
-MIN_ENTITY_LENGTH = 3
+MIN_ENTITY_LENGTH = 2
 
 NOISE_WORDS = {
     "will", "the", "a", "an", "be", "to", "in", "on", "by", "at",
@@ -204,7 +204,15 @@ DAYS = {
 YEARS = [
     "2026",
     "2027",
-    "2028"
+    "2028",
+    "2029",
+    "2030",
+    "2031",
+    "2032",
+    "2033",
+    "2034",
+    "2035",
+    "2036",
 ]
 
 NEGATION_WORDS = {

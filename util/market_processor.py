@@ -2,7 +2,6 @@ from enum import Enum
 from dataclasses import dataclass
 import re
 from datetime import date
-import spacy
 from collections import defaultdict
 import util.constants as constants
 
@@ -48,8 +47,8 @@ class ProcessedMarket:
     
 class MarketPreprocessor:
 
-    def __init__(self):
-        self.NLP = spacy.load("en_core_web_sm")
+    def __init__(self, nlp):
+        self.NLP = nlp
 
     def preprocess(self, market_old) -> ProcessedMarket:
         market_type = MarketType.KALSHI if market_old.platform == "kalshi" else MarketType.POLYMARKET
@@ -174,7 +173,10 @@ class MarketPreprocessor:
                     break
 
         if "this month" in text_lower:
-            month = str(date.today().month % 12 + 1).zfill(2)
+            today = date.today()
+            wrapped_year = today.year + (1 if today.month == 12 else 0)
+            month = str(today.month % 12 + 1).zfill(2)
+            year = str(wrapped_year)
             raw_tokens.append("this month")
 
         if "this year" in text_lower:

@@ -4,7 +4,6 @@ from datetime import date, timedelta
 from collections import Counter
 import util.constants as constants
 import httpx
-import spacy
 import json
 
 
@@ -40,8 +39,8 @@ class CandidatePair:
     
 class CandidatePairGenerator:
     
-    def __init__(self):
-        self.NLP = spacy.load("en_core_web_lg")
+    def __init__(self, nlp):
+        self.NLP = nlp
         self.reject_reasons = Counter()
 
     def normalize_text(self, text: str) -> str:
@@ -50,44 +49,97 @@ class CandidatePairGenerator:
         text = re.sub(r'[^\w\s]', ' ', text)
         return text
 
+    def _get_nearest_qualifier(self, text: str, start: int, end: int) -> str | None:
+        """
+        Find the nearest deadline qualifier ('before', 'after', or 'by')
+        within a window around the matched date span.
+        """
+
+        window_size = 50
+
+        window_start = max(0, start - window_size)
+        window_end = min(len(text), end + window_size)
+
+        window = text[window_start:window_end]
+
+        # Position of the date within the window
+        date_start = start - window_start
+        date_end = end - window_start
+
+        matches = []
+
+        for qualifier in ("before", "after", "by"):
+            search_start = 0
+
+            while True:
+                pos = window.find(qualifier, search_start)
+
+                if pos == -1:
+                    break
+
+                # Don't consider a qualifier that occurs inside the date itself
+                if pos < date_start:
+                    distance = date_start - pos
+                elif pos >= date_end:
+                    distance = pos - date_end
+                else:
+                    search_start = pos + 1
+                    continue
+
+                matches.append((distance, qualifier))
+                search_start = pos + 1
+
+        if not matches:
+            return None
+
+        # Smallest distance = closest qualifier to the date
+        return min(matches, key=lambda x: x[0])[1]
+
     def get_deadline(self, question: str) -> str:
-        
+
         text_lower = self.normalize_text(question)
         tokens = text_lower.split()
-        
+
         raw_tokens = []
 
         before_or_after = None
         month = None
         day = None
         year = None
-        
-        if "before" in tokens:
-            before_or_after = "before"
-        elif "by" in tokens:
-            before_or_after = "by"
-        elif "after" in tokens:
-            before_or_after = "after"
-            
+
+        # ---------------------------------------------------------
         # Find the first month mentioned in the actual sentence
-        # Sort longest-first so "august" beats "aug"
+        # ---------------------------------------------------------
         found_month = None
         first_pos = len(text_lower)
 
-        for month_name in sorted(constants.MONTHS.keys(), key=len, reverse=True):
+        for month_name in sorted(
+            constants.MONTHS.keys(),
+            key=len,
+            reverse=True
+        ):
             match = re.search(rf"\b{month_name}\b", text_lower)
 
             if match and match.start() < first_pos:
                 first_pos = match.start()
                 found_month = month_name
 
+        # ---------------------------------------------------------
+        # Month + optional day + optional year
+        # Example:
+        #   November
+        #   November 15
+        #   November 15, 2026
+        #   November 2026
+        # ---------------------------------------------------------
         if found_month:
+
             month = constants.MONTHS[found_month]
             raw_tokens.append(found_month)
 
             pattern = (
                 rf'\b{found_month}\.?,?\s*'
-                rf'(\d{{1,2}})'
+                rf'(\d{{1,2}})?'
                 rf'(?:st|nd|rd|th)?'
                 rf'(?:,?\s*(\d{{4}}))?\b'
             )
@@ -95,97 +147,187 @@ class CandidatePairGenerator:
             d = re.search(pattern, text_lower)
 
             if d:
-                day = d.group(1).zfill(2)
-                raw_tokens.append(d)
 
+                # Day
+                if d.group(1):
+                    day = d.group(1).zfill(2)
+                    raw_tokens.append(d.group(1))
+
+                # Year
                 if d.group(2):
-                    raw_tokens.append(d)
-                    
                     year = d.group(2)
+                    raw_tokens.append(d.group(2))
 
-        
+                # -------------------------------------------------
+                # Determine qualifier based on proximity to THIS
+                # specific date match.
+                # -------------------------------------------------
+                before_or_after = self._get_nearest_qualifier(
+                    text_lower,
+                    d.start(),
+                    d.end()
+                )
+
+        # ---------------------------------------------------------
+        # Handle "Monday of November", "Friday of December", etc.
+        # ---------------------------------------------------------
         if day is None:
 
             day_regex = "|".join(
                 sorted(
-                    [d.replace("-", "[- ]") for d in constants.DAYS.keys()],
+                    [
+                        d.replace("-", "[- ]")
+                        for d in constants.DAYS.keys()
+                    ],
                     key=len,
                     reverse=True
                 )
             )
 
-            for month_name in sorted(constants.MONTHS.keys(), key=len, reverse=True):
+            for month_name in sorted(
+                constants.MONTHS.keys(),
+                key=len,
+                reverse=True
+            ):
 
                 pattern = rf'\b({day_regex})\s+of\s+{month_name}\b'
 
                 m = re.search(pattern, text_lower)
 
                 if m:
+
                     month = constants.MONTHS[month_name]
                     raw_tokens.append(month_name)
+
                     day = constants.DAYS[m.group(1)]
                     raw_tokens.append(m.group(1))
+
+                    # Determine qualifier nearest to this date expression
+                    before_or_after = self._get_nearest_qualifier(
+                        text_lower,
+                        m.start(),
+                        m.end()
+                    )
+
                     break
 
-        
+        # ---------------------------------------------------------
+        # Handle standalone day names
+        # Example: "by Friday"
+        # ---------------------------------------------------------
         if day is None:
 
-            for d in sorted(constants.DAYS.keys(), key=len, reverse=True):
+            for d in sorted(
+                constants.DAYS.keys(),
+                key=len,
+                reverse=True
+            ):
 
                 if d in tokens:
+
                     day = constants.DAYS[d]
                     raw_tokens.append(d)
+
+                    # Find the actual occurrence in the text so we can
+                    # determine the nearest qualifier.
+                    match = re.search(
+                        rf'\b{re.escape(d)}\b',
+                        text_lower
+                    )
+
+                    if match:
+                        before_or_after = self._get_nearest_qualifier(
+                            text_lower,
+                            match.start(),
+                            match.end()
+                        )
+
                     break
-                
-        
+
+        # ---------------------------------------------------------
+        # Special cases
+        # ---------------------------------------------------------
         if "this month" in text_lower:
-            month = str(date.today().month % 12 + 1).zfill(2)
+
+            today = date.today()
+
+            wrapped_year = today.year + (
+                1 if today.month == 12 else 0
+            )
+
+            month = str(today.month % 12 + 1).zfill(2)
+            year = str(wrapped_year)
+
             raw_tokens.append("this month")
-            
+
         if "this year" in text_lower:
+
             year = str(date.today().year)
             raw_tokens.append("this year")
-            
 
+        # ---------------------------------------------------------
+        # Explicit year
+        # ---------------------------------------------------------
         for token in tokens:
+
             if token in constants.YEARS:
+
                 year = token
                 raw_tokens.append(token)
+
                 break
 
-                
+        # ---------------------------------------------------------
+        # No date information
+        # ---------------------------------------------------------
         if year is None and month is None and day is None:
             return None
 
-        
+        # ---------------------------------------------------------
+        # Month without day -> first day of month
+        # ---------------------------------------------------------
         if day is None and month is not None:
             day = "01"
 
-        
+        # ---------------------------------------------------------
+        # Month without year -> current year
+        # ---------------------------------------------------------
         if month is not None and year is None:
             year = str(date.today().year)
 
-        
+        # ---------------------------------------------------------
+        # Year only -> December 31
+        # ---------------------------------------------------------
         if month is None and day is None and year is not None:
+
             before_or_after = "by"
             month = "12"
             day = "31"
 
-        
+        # ---------------------------------------------------------
+        # Normalize one-digit days
+        # ---------------------------------------------------------
         if day is not None and len(str(day)) == 1:
             day = "0" + str(day)
 
-        
+        # ---------------------------------------------------------
+        # Day without month/year isn't enough
+        # ---------------------------------------------------------
         if day is not None and month is None and year is None:
             return None
-        
-        # assume its this month? not sure how to handle this yet
+
+        # ---------------------------------------------------------
+        # Day + year but no month -> assume current month
+        # ---------------------------------------------------------
         if day is not None and month is None and year is not None:
-            month = str(date.today().month)
+            month = str(date.today().month).zfill(2)
 
-                
-        return (before_or_after, f"{month}-{day}-{year}", raw_tokens)
-
+        return (
+            before_or_after,
+            f"{month}-{day}-{year}",
+            raw_tokens
+        )
+ 
     def get_candidates(self, question):
         SENTENCE_OPENERS = ["will", "what", "who", "how", "does", ]
         
@@ -200,8 +342,12 @@ class CandidatePairGenerator:
         ents = []
         
         for e in doc.ents:
-            if e.label_ not in constants.UNWANTED_ENT_LABELS:
-                ents.append(e.text)
+            if e.label_ in constants.UNWANTED_ENT_LABELS:
+                continue
+            candidate = e.text.strip()
+            if len(self.normalize_text(candidate).strip()) < constants.MIN_ENTITY_LENGTH:
+                continue
+            ents.append(candidate)
 
         
         return ents
@@ -243,6 +389,8 @@ class CandidatePairGenerator:
                 continue
             elif token in deadline_words:
                 continue
+            elif token in constants.NOISE_WORDS:
+                continue
 
             filtered.append(token)
 
@@ -262,19 +410,19 @@ class CandidatePairGenerator:
             return abs((date1 - date2).days) <= constants.TOLERANCE_DAYS
 
         if q1 == "before" and q2 == "after":
-            return date2 + timedelta(days=1) == date1
+            return date2 < date1
 
         if q1 == "after" and q2 == "before":
-            return date1 + timedelta(days=1) == date2
+            return date1 < date2
 
         return False
     
-    def has_negation(self, q1):
+    def has_even_negation(self, q1):
         normalized = self.normalize_text(q1)
-        return any(
-            re.search(rf'\b{re.escape(w)}\b', normalized)
+        return sum(
+            bool(re.search(rf'\b{re.escape(w)}\b', normalized))
             for w in constants.NEGATION_WORDS
-        )
+        ) % 2
 
 
     def keyword_pool_overlap(self, pm_q, k_q):
@@ -364,8 +512,8 @@ class CandidatePairGenerator:
             self.reject_reasons["deadline_mismatch"] += 1
             return None
 
-        pm_neg = self.has_negation(pm_q)
-        k_neg = self.has_negation(k_q)
+        pm_neg = self.has_even_negation(pm_q)
+        k_neg = self.has_even_negation(k_q)
         if pm_neg != k_neg:
             self.reject_reasons["negation_mismatch"] += 1
             return None

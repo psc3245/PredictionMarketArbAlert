@@ -2,16 +2,19 @@ from util.match_markets import CandidatePairGenerator, LLM_Verifier
 from util.market_processor import MarketPreprocessor, LookupTable
 from market_collection.kalshi_client import KalshiClient
 from market_collection.pm_client import PMClient
+import spacy
 
 
 async def match(target=1500):
     kalshi_client = KalshiClient()
     pm_client = PMClient()
     
-    preprocessor = MarketPreprocessor()
+    nlp = spacy.load("en_core_web_lg")
+    
+    preprocessor = MarketPreprocessor(nlp)
     lookup_table = LookupTable()
     
-    pair_generator = CandidatePairGenerator()
+    pair_generator = CandidatePairGenerator(nlp)
     llm_verifier = LLM_Verifier()
 
     kalshi = await kalshi_client.list_all_markets()
