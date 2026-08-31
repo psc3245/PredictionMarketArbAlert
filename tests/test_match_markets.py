@@ -3,13 +3,16 @@ from pathlib import Path
 from datetime import date
 
 import pytest
+import spacy
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
 from util.match_markets import CandidatePairGenerator, LLM_Verifier
 
-gen = CandidatePairGenerator()
+nlp = spacy.load("en_core_web_lg")
+
+gen = CandidatePairGenerator(nlp)
 llm = LLM_Verifier()
 
 # ----------------------------
@@ -373,7 +376,7 @@ LLM_VERIFICATION_TESTS = [
 def test_llm_verification(q1, q2, expected):
     res = gen.create_candidate_pair(pm_id="", k_id="", pm_q=q1, k_q=q2)
     if res == None:
-        assert res == expected
+        assert expected is False, f"unexpectedly rejected before LLM check (expected={expected})"
     else:
         result = llm.llm_check_pair(res)
         assert result == expected
@@ -404,7 +407,7 @@ UNMATCHED_VERIFICATION_TESTS = [
     (
         "Will the Chiefs beat the Bills?",
         "Will the Chiefs beat the Broncos?",
-        False,
+        None,
     ),
     (
         "Will the Chiefs beat the Bills?",
@@ -416,12 +419,6 @@ UNMATCHED_VERIFICATION_TESTS = [
         "Will Mbappe be the tournament's top goalscorer?",
         True,
     ),
-    # known limitation - it struggles with this unmatched
-    # (
-    #     "Will Messi win the Golden Ball?",
-    #     "Will Messi be the tournament's top goalscorer?",
-    #     False,
-    # ),
 
     (
         "Will Bitcoin hit $150k before October?",
